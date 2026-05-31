@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e0e0e">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+<meta name="apple-mobile-web-app-title" content="Ledger">
+<title>Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+/* ── CONFIG NOTICE ─────────────────────────────────────────────────────────
+   Replace the two placeholders in the SUPABASE CONFIG section below.
+   ──────────────────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e0e;--bg2:#161616;--bg3:#1e1e1e;--bg4:#262626;
+  --border:#2a2a2a;--border2:#383838;
+  --text:#e8e4d9;--text2:#8a8478;--text3:#5a5650;
+  --amber:#d4a843;--amber2:#f0c060;--amber3:#8a6820;
+  --green:#4a9960;--green2:#6ab87a;
+  --red:#c04848;--blue2:#6a9ad4;
+  --mono:'IBM Plex Mono',monospace;--r:3px;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:var(--mono);cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:var(--mono);background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:var(--r);padding:7px 10px;font-size:12px;outline:none;width:100%;-webkit-appearance:none;appearance:none}
+input:focus,select:focus{border-color:var(--amber);box-shadow:0 0 0 2px rgba(212,168,67,.15)}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235a5650' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+select option{background:var(--bg3)}
+label{font-size:11px;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px}
+input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--amber);flex-shrink:0}
+
+/* Layout */
+#app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:196px;min-width:196px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.wordmark{font-size:15px;font-weight:600;letter-spacing:.18em;color:var(--amber)}
+.wordmark-sub{font-size:10px;color:var(--text3);letter-spacing:.1em;margin-top:2px}
+.nav-section{padding:12px 16px 4px;font-size:9px;color:var(--text3);letter-spacing:.15em;text-transform:uppercase}
+.nav-item{padding:9px 16px;font-size:12px;cursor:pointer;color:var(--text2);border-left:2px solid transparent;transition:all .1s;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+.nav-item:hover{color:var(--text);background:var(--bg3)}
+.nav-item.active{color:var(--amber);border-left-color:var(--amber);background:rgba(212,168,67,.06)}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:var(--amber3);flex-shrink:0}
+.sidebar-footer{margin-top:auto;border-top:1px solid var(--border);padding:12px 16px}
+
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
+.topbar{padding:13px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg);position:sticky;top:0;z-index:10;flex-shrink:0;gap:12px}
+.topbar-left{min-width:0}
+.topbar-title{font-size:14px;font-weight:600;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.topbar-actions{display:flex;gap:8px;flex-shrink:0;align-items:center}
+.content{padding:18px 22px;flex:1}
+
+/* Buttons */
+.btn{padding:6px 13px;border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer;transition:all .1s;letter-spacing:.04em;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--amber);color:#0e0e0e;border:1px solid var(--amber)}
+.btn-primary:not(:disabled):hover{background:var(--amber2)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{color:var(--text);background:var(--bg3)}
+.btn-danger{background:transparent;color:var(--red);border:1px solid transparent}
+.btn-danger:hover{border-color:var(--red);background:rgba(192,72,72,.08)}
+.btn-green{background:var(--green);color:#fff;border:1px solid var(--green)}
+.btn-green:not(:disabled):hover{background:var(--green2)}
+.btn-sm{padding:4px 9px;font-size:11px}
+
+/* Cards / stats */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
+.stat{background:var(--bg2);border:1px solid var(--border);padding:13px;border-radius:var(--r)}
+.stat-label{font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+.stat-val{font-size:20px;font-weight:600;color:var(--amber)}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:15px}
+
+/* Client rows */
+.client-row{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:7px;cursor:pointer;transition:all .1s;background:var(--bg2)}
+.client-row:hover{border-color:var(--border2);background:var(--bg3)}
+
+/* Entry rows */
+.entry-table{border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.entry-row{display:grid;grid-template-columns:14px 1fr 80px 90px 58px 28px;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid var(--border);font-size:12px;transition:background .1s}
+.entry-row:last-child{border-bottom:none}
+.entry-row:hover{background:var(--bg3)}
+.section-hdr{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);padding:7px 11px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+
+/* Badges */
+.badge{font-size:9px;padding:2px 5px;border-radius:2px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;white-space:nowrap}
+.badge-shoot{background:rgba(74,152,96,.2);color:var(--green2)}
+.badge-edit{background:rgba(72,120,184,.2);color:var(--blue2)}
+.badge-gfx{background:rgba(180,80,180,.2);color:#c880c8}
+.badge-render{background:rgba(180,120,40,.2);color:#d4904a}
+.badge-draft{background:rgba(212,168,67,.2);color:var(--amber)}
+.badge-sent{background:rgba(72,120,184,.2);color:var(--blue2)}
+.badge-paid{background:rgba(74,152,96,.2);color:var(--green2)}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot-on{background:var(--amber)}
+.dot-off{background:var(--text3)}
+
+/* Tabs */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:14px}
+.tab{padding:7px 14px;font-size:12px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .1s}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+
+/* Modals */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);width:100%;max-width:540px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column}
+.modal.wide{max-width:680px}
+.modal-hdr{padding:15px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-body{padding:18px;flex:1;overflow-y:auto}
+.modal-ftr{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+
+/* Forms */
+.fg{display:flex;flex-direction:column;gap:11px}
+.fr{display:grid;gap:11px}
+.c2{grid-template-columns:1fr 1fr}
+.c3{grid-template-columns:1fr 1fr 1fr}
+
+/* Invoice cards */
+.inv-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:9px;overflow:hidden}
+.inv-hdr{padding:11px 15px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .1s}
+.inv-hdr:hover{background:var(--bg3)}
+
+/* Misc */
+.divider{height:1px;background:var(--border);margin:14px 0}
+.chip{display:inline-flex;padding:2px 7px;border-radius:2px;font-size:10px;background:var(--bg4);border:1px solid var(--border);color:var(--text2);margin:2px}
+.total-row{display:flex;justify-content:space-between;padding:7px 11px;font-size:13px}
+.total-grand{border-top:1px solid var(--border2);font-weight:600;color:var(--amber);font-size:14px}
+.empty{padding:44px 20px;text-align:center;color:var(--text3);font-size:12px;border:1px dashed var(--border);border-radius:var(--r)}
+.kbd{background:var(--bg4);border:1px solid var(--border2);border-radius:2px;padding:1px 5px;font-size:10px;color:var(--text3)}
+.mono-num{font-variant-numeric:tabular-nums}
+.amber{color:var(--amber)}
+.muted{color:var(--text3)}
+.err{background:rgba(192,72,72,.1);border:1px solid rgba(192,72,72,.3);color:#e06060;padding:9px 13px;border-radius:var(--r);font-size:12px;margin-bottom:11px}
+.ok{background:rgba(74,152,96,.1);border:1px solid rgba(74,152,96,.3);color:var(--green2);padding:9px 13px;border-radius:var(--r);font-size:12px;margin-bottom:11px}
+.loading-screen{display:flex;align-items:center;justify-content:center;height:100vh;color:var(--text3);font-size:12px;letter-spacing:.1em}
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}
+.auth-box{width:100%;max-width:360px}
+.auth-logo{text-align:center;margin-bottom:28px}
+
+/* Scrollbars */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px}
+
+/* Mobile */
+@media(max-width:600px){
+  .sidebar{width:150px;min-width:150px}
+  .content{padding:12px 14px}
+  .topbar{padding:11px 14px}
+  .entry-row{grid-template-columns:12px 1fr 70px 26px}
+  .entry-date-col,.entry-edit-col{display:none}
+  .c2,.c3{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="app"><div class="loading-screen">loading…</div></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  SUPABASE CONFIG — replace these two values
+// ═══════════════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://imhgracudccwhulfqggn.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_OAwlQmcjdTi8MsuyVyL6bA_WuWXmWi5';
+// ═══════════════════════════════════════════════════════════════
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── Billing ──────────────────────────────────────────────────
+const EDIT_CATS = {
+  basic:    { label:'Basic',    mult:1 },
+  standard: { label:'Standard', mult:1.5 },
+  heavy:    { label:'Heavy',    mult:2.2 },
+  complex:  { label:'Complex',  mult:3 },
+};
+function computeTotal(e, client) {
+  const r = client?.default_rates || {};
+  const n = v => Number(v||0);
+  if (e.type==='shoot') {
+    if (e.billing_mode==='day_rate') return n(e.rate_override??r.shoot_day_rate);
+    return n(e.rate_override??r.shoot_hourly_rate) * n(e.hours);
+  }
+  if (e.type==='edit') return n(e.rate_override??r.edit_rate_per_minute) * n(e.duration_minutes) * (EDIT_CATS[e.category]?.mult||1);
+  if (e.type==='graphic_design') return n(e.rate_override??r.graphic_design_hourly_rate) * n(e.hours);
+  if (e.type==='render')         return n(e.rate_override??r.render_hourly_rate) * n(e.hours);
+  return 0;
+}
+const $m = n => '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const $d = d => { if(!d)return''; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}); };
+const today = () => new Date().toISOString().slice(0,10);
+const uid = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+
+// ── State ────────────────────────────────────────────────────
+let STATE = { user:null, clients:[], entries:[], invoices:[], page:'dashboard', pageParam:null, loading:true };
+
+// ── DOM helpers ──────────────────────────────────────────────
+const $ = s => document.querySelector(s);
+const el = (tag,cls,html='') => { const e=document.createElement(tag); if(cls)e.className=cls; if(html)e.innerHTML=html; return e; };
+function render() { $('#app').innerHTML = ''; buildApp(); }
+
+// ── Supabase data ────────────────────────────────────────────
+async function fetchAll() {
+  if (!STATE.user) return;
+  const [c,e,i] = await Promise.all([
+    sb.from('clients').select('*').order('created_at'),
+    sb.from('entries').select('*').order('date',{ascending:false}),
+    sb.from('invoices').select('*').order('created_at',{ascending:false}),
+  ]);
+  STATE.clients  = c.data||[];
+  STATE.entries  = e.data||[];
+  STATE.invoices = i.data||[];
+  render();
+}
+
+// ── Router ───────────────────────────────────────────────────
+function nav(page, param=null) { STATE.page=page; STATE.pageParam=param; render(); }
+
+// ── Main builder ─────────────────────────────────────────────
+function buildApp() {
+  if (STATE.loading) { $('#app').innerHTML='<div class="loading-screen">loading…</div>'; return; }
+  if (!STATE.user)   { buildAuth(); return; }
+
+  const app = $('#app');
+  // Sidebar
+  const sb_el = el('div','sidebar');
+  sb_el.innerHTML = `
+    <div class="sidebar-logo">
+      <div class="wordmark">LEDGER</div>
+      <div class="wordmark-sub">for creatives</div>
+    </div>
+    <div class="nav-section">Navigation</div>
+    <div class="nav-item${STATE.page==='dashboard'||STATE.page==='client'?' active':''}" data-nav="dashboard"><span style="font-size:14px">⊞</span> Dashboard</div>
+    <div class="nav-item${STATE.page==='invoices'?' active':''}" data-nav="invoices"><span style="font-size:14px">◈</span> Invoices</div>
+    <div class="nav-item${STATE.page==='settings'?' active':''}" data-nav="settings"><span style="font-size:14px">◎</span> Settings</div>
+    <div class="nav-section">Clients</div>
+    ${STATE.clients.slice(0,12).map(c=>`
+      <div class="nav-item${STATE.page==='client'&&STATE.pageParam===c.id?' active':''}" data-nav="client" data-id="${c.id}" style="font-size:11px;padding-left:20px">
+        <span class="nav-dot"></span>${esc(c.name.length>17?c.name.slice(0,17)+'…':c.name)}
+      </div>`).join('')}
+    ${STATE.clients.length===0?'<div style="padding:6px 20px;font-size:11px;color:var(--text3)">No clients</div>':''}
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-sm" id="signout-btn" style="width:100%;justify-content:center;font-size:11px">Sign out</button>
+    </div>`;
+  app.appendChild(sb_el);
+
+  const main = el('div','main');
+  app.appendChild(main);
+
+  // Nav clicks
+  sb_el.querySelectorAll('[data-nav]').forEach(n => {
+    n.onclick = () => {
+      const p = n.dataset.nav, id = n.dataset.id||null;
+      nav(p, id);
+    };
+  });
+  $('#signout-btn').onclick = async () => { await sb.auth.signOut(); };
+
+  // Page content
+  if (STATE.page==='dashboard') buildDashboard(main);
+  else if (STATE.page==='client') buildClientDetail(main);
+  else if (STATE.page==='invoices') buildInvoices(main);
+  else if (STATE.page==='settings') buildSettings(main);
+}
+
+// ── Auth ─────────────────────────────────────────────────────
+function buildAuth() {
+  $('#app').innerHTML = `
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <div class="auth-logo">
+        <div class="wordmark" style="font-size:20px">LEDGER</div>
+        <div class="wordmark-sub" style="margin-top:4px;font-size:11px">for creatives</div>
+      </div>
+      <div class="card">
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <button class="btn btn-primary btn-sm" id="tab-login">Log in</button>
+          <button class="btn btn-ghost btn-sm" id="tab-signup">Sign up</button>
+        </div>
+        <div id="auth-msg"></div>
+        <div class="fg">
+          <div><label>Email</label><input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email"></div>
+          <div><label>Password</label><input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password"></div>
+          <button class="btn btn-primary" id="auth-submit" style="justify-content:center">Log in</button>
+        </div>
+        <div id="auth-confirm" style="display:none;text-align:center;color:var(--text2);font-size:12px;padding-top:12px"></div>
+      </div>
+    </div>
+  </div>`;
+
+  let mode = 'login';
+  const setMode = m => {
+    mode = m;
+    $('#tab-login').className = 'btn btn-sm '+(m==='login'?'btn-primary':'btn-ghost');
+    $('#tab-signup').className = 'btn btn-sm '+(m==='signup'?'btn-primary':'btn-ghost');
+    $('#auth-submit').textContent = m==='login' ? 'Log in' : 'Create account';
+    $('#auth-pass').placeholder = m==='signup' ? 'Min. 6 characters' : '••••••••';
+    $('#auth-pass').autocomplete = m==='signup' ? 'new-password' : 'current-password';
+    $('#auth-msg').innerHTML = '';
+  };
+  $('#tab-login').onclick = () => setMode('login');
+  $('#tab-signup').onclick = () => setMode('signup');
+  $('#auth-email').focus();
+
+  async function submit() {
+    const email = $('#auth-email').value.trim();
+    const pass  = $('#auth-pass').value;
+    if (!email||!pass) return;
+    $('#auth-submit').disabled = true;
+    $('#auth-msg').innerHTML = '';
+    if (mode==='signup') {
+      const {error} = await sb.auth.signUp({email,password:pass});
+      if (error) { $('#auth-msg').innerHTML=`<div class="err">${esc(error.message)}</div>`; }
+      else { $('#auth-confirm').style.display='block'; $('#auth-confirm').innerHTML='<div class="ok">✓ Check your email to confirm, then log in.</div>'; setMode('login'); }
+    } else {
+      const {error} = await sb.auth.signInWithPassword({email,password:pass});
+      if (error) { $('#auth-msg').innerHTML=`<div class="err">${esc(error.message)}</div>`; }
+    }
+    $('#auth-submit').disabled = false;
+  }
+  $('#auth-submit').onclick = submit;
+  document.addEventListener('keydown', function kd(e){ if(e.key==='Enter'&&$('#auth-submit')){ submit(); } }, {once:true});
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+function buildDashboard(main) {
+  const uninvTot = cid => STATE.entries.filter(e=>e.client_id===cid&&!e.invoiced).reduce((s,e)=>s+Number(e.computed_total||0),0);
+  const pendTot  = () => STATE.invoices.filter(i=>i.status!=='paid').reduce((s,i)=>s+Number(i.total_amount||0),0);
+  const paidTot  = () => STATE.invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+Number(i.total_amount||0),0);
+  const openEnts = STATE.entries.filter(e=>!e.invoiced).length;
+  const allUnbil = STATE.clients.reduce((s,c)=>s+uninvTot(c.id),0);
+
+  main.innerHTML = `
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Dashboard</div><div class="topbar-sub">Ledger overview</div></div>
+      <div class="topbar-actions"><button class="btn btn-primary" id="new-client-btn">+ New Client</button></div>
+    </div>
+    <div class="content">
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">Unbilled Work</div><div class="stat-val">${$m(allUnbil)}</div><div class="stat-sub">${openEnts} open entries</div></div>
+        <div class="stat"><div class="stat-label">Invoiced (Pending)</div><div class="stat-val" style="color:var(--blue2)">${$m(pendTot())}</div><div class="stat-sub">awaiting payment</div></div>
+        <div class="stat"><div class="stat-label">Paid</div><div class="stat-val" style="color:var(--green2)">${$m(paidTot())}</div><div class="stat-sub">all time</div></div>
+        <div class="stat"><div class="stat-label">Clients</div><div class="stat-val" style="color:var(--text)">${STATE.clients.length}</div><div class="stat-sub">active</div></div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px">Clients</div>
+      <div id="client-list">
+        ${STATE.clients.length===0?'<div class="empty">Add your first client to start tracking billable work</div>':
+          STATE.clients.map(c=>{
+            const ub=uninvTot(c.id);
+            const cnt=STATE.entries.filter(e=>e.client_id===c.id&&!e.invoiced).length;
+            const pend=STATE.invoices.filter(i=>i.client_id===c.id&&i.status!=='paid').reduce((s,i)=>s+Number(i.total_amount||0),0);
+            return `<div class="client-row" data-client="${c.id}">
+              <div>
+                <div style="font-weight:500;font-size:13px">${esc(c.name)}</div>
+                <div style="font-size:11px;color:var(--text3)">${cnt} uninvoiced entr${cnt===1?'y':'ies'}${pend>0?` <span style="color:var(--blue2)">· ${$m(pend)} pending</span>`:''}</div>
+              </div>
+              <div style="text-align:right">
+                <div class="mono-num${ub===0?' muted':' amber'}" style="font-size:14px;font-weight:600">${$m(ub)}</div>
+                <div style="font-size:10px;color:var(--text3)">unbilled</div>
+              </div>
+            </div>`;
+          }).join('')}
+      </div>
+    </div>`;
+
+  $('#new-client-btn').onclick = () => openClientModal();
+  main.querySelectorAll('[data-client]').forEach(r => { r.onclick = () => nav('client', r.dataset.client); });
+}
+
+// ── Client Detail ─────────────────────────────────────────────
+function buildClientDetail(main) {
+  const client = STATE.clients.find(c=>c.id===STATE.pageParam);
+  if (!client) { main.innerHTML='<div class="content muted">Client not found.</div>'; return; }
+
+  const entries    = STATE.entries.filter(e=>e.client_id===client.id).sort((a,b)=>b.date.localeCompare(a.date));
+  const uninvoiced = entries.filter(e=>!e.invoiced);
+  const invoiced   = entries.filter(e=>e.invoiced);
+  const unbilTot   = uninvoiced.reduce((s,e)=>s+Number(e.computed_total||0),0);
+  let activeTab = 'uninvoiced';
+
+  function entryDetail(e) {
+    if (e.type==='edit') return `${e.duration_minutes}min · ${EDIT_CATS[e.category]?.label||''}`;
+    if (e.type==='shoot') return e.billing_mode==='day_rate' ? 'Day Rate' : `${e.hours}h`;
+    return `${e.hours}h`;
+  }
+  function typeBadge(t) {
+    const map={shoot:'badge-shoot shoot',edit:'badge-edit edit',graphic_design:'badge-gfx gfx',render:'badge-render render'};
+    const lbl={shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER'};
+    return `<span class="badge ${map[t]||''}">${lbl[t]||t}</span>`;
+  }
+  function entryRows(list, locked) {
+    if (!list.length) return `<div class="empty">${locked?'No invoiced entries':'Press <span class="kbd">+ Entry</span> to add billable work'}</div>`;
+    return `<div class="entry-table">
+      <div class="section-hdr">
+        <span>${locked?'Invoiced Entries':'Uninvoiced Entries'}</span>
+        ${!locked?`<span class="amber mono-num" style="font-weight:600">${$m(unbilTot)}</span>`:''}
+      </div>
+      ${list.map(e=>`
+        <div class="entry-row">
+          <span class="dot ${locked?'dot-off':'dot-on'}" title="${locked?'Locked':'Uninvoiced'}"></span>
+          <div style="min-width:0">
+            <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.title)}</div>
+            <div style="font-size:10px;color:var(--text3);display:flex;gap:5px;align-items:center;margin-top:1px">
+              ${typeBadge(e.type)}<span>${$d(e.date)}</span><span>${entryDetail(e)}</span>
+            </div>
+          </div>
+          <span class="muted entry-date-col" style="font-size:11px;text-align:right">${$d(e.date)}</span>
+          <span class="amber mono-num entry-date-col" style="font-weight:600;text-align:right">${$m(e.computed_total)}</span>
+          <div class="entry-edit-col" style="display:flex;gap:3px;justify-content:flex-end">
+            ${!locked?`<button class="btn btn-ghost btn-sm" data-edit="${e.id}" title="Edit">✎</button>`:''}
+            ${locked?`<button class="btn btn-ghost btn-sm" data-unlock="${e.id}" title="Unlock" style="color:var(--text3);font-size:10px">🔓</button>`:''}
+          </div>
+          <div>
+            ${!locked?`<button class="btn btn-danger btn-sm" data-del="${e.id}" title="Delete">✕</button>`:''}
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  function drawContent(tab) {
+    const panel = $('#client-panel');
+    if (!panel) return;
+    panel.innerHTML = `
+      <div class="tabs">
+        <div class="tab${tab==='uninvoiced'?' active':''}" data-tab="uninvoiced">Uninvoiced (${uninvoiced.length})</div>
+        <div class="tab${tab==='invoiced'?' active':''}" data-tab="invoiced">Invoiced (${invoiced.length})</div>
+      </div>
+      ${tab==='uninvoiced'?entryRows(uninvoiced,false):entryRows(invoiced,true)}`;
+
+    panel.querySelectorAll('[data-tab]').forEach(t=>{ t.onclick=()=>{ activeTab=t.dataset.tab; drawContent(activeTab); }; });
+    panel.querySelectorAll('[data-edit]').forEach(b=>{ b.onclick=()=>{ const e=STATE.entries.find(x=>x.id===b.dataset.edit); openEntryModal(client,e); }; });
+    panel.querySelectorAll('[data-del]').forEach(b=>{ b.onclick=()=>deleteEntry(b.dataset.del); });
+    panel.querySelectorAll('[data-unlock]').forEach(b=>{ b.onclick=()=>unlockEntry(b.dataset.unlock); });
+  }
+
+  main.innerHTML = `
+    <div class="topbar">
+      <div class="topbar-left">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="back-btn" style="padding:2px 8px">←</button>
+          <div class="topbar-title">${esc(client.name)}</div>
+        </div>
+        <div class="topbar-sub">${$m(unbilTot)} unbilled · ${uninvoiced.length} entries</div>
+      </div>
+      <div class="topbar-actions">
+        ${uninvoiced.length>0?'<button class="btn btn-ghost" id="build-inv-btn">Build Invoice</button>':''}
+        <button class="btn btn-primary" id="add-entry-btn">+ Entry</button>
+      </div>
+    </div>
+    <div class="content"><div id="client-panel"></div></div>`;
+
+  drawContent(activeTab);
+  $('#back-btn').onclick = () => nav('dashboard');
+  $('#add-entry-btn').onclick = () => openEntryModal(client);
+  if ($('#build-inv-btn')) $('#build-inv-btn').onclick = () => openBuildInvoiceModal(client, uninvoiced);
+
+  async function deleteEntry(id) {
+    if (!confirm('Delete this entry?')) return;
+    await sb.from('entries').delete().eq('id',id);
+    fetchAll();
+  }
+  async function unlockEntry(id) {
+    if (!confirm('Remove from invoice and unlock for editing?')) return;
+    const e = STATE.entries.find(x=>x.id===id);
+    if (e?.invoice_id) {
+      const inv = STATE.invoices.find(i=>i.id===e.invoice_id);
+      if (inv) {
+        const newIds = (inv.entry_ids||[]).filter(x=>x!==id);
+        const newTot = newIds.reduce((s,eid)=>{ const en=STATE.entries.find(x=>x.id===eid); return s+Number(en?.computed_total||0); },0);
+        await sb.from('invoices').update({entry_ids:newIds,total_amount:newTot}).eq('id',inv.id);
+      }
+    }
+    await sb.from('entries').update({invoiced:false,invoice_id:null}).eq('id',id);
+    fetchAll();
+  }
+}
+
+// ── Invoices Page ─────────────────────────────────────────────
+function buildInvoices(main) {
+  const sorted   = [...STATE.invoices].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const active   = sorted.filter(i=>i.status!=='paid');
+  const archived = sorted.filter(i=>i.status==='paid');
+
+  function invCard(inv) {
+    const client    = STATE.clients.find(c=>c.id===inv.client_id);
+    const invEnts   = STATE.entries.filter(e=>(inv.entry_ids||[]).includes(e.id));
+    const dates     = invEnts.map(e=>new Date(e.date+'T00:00:00')).filter(d=>!isNaN(d));
+    const mn = dates.length ? $d(new Date(Math.min(...dates)).toISOString().slice(0,10)) : '';
+    const mx = dates.length ? $d(new Date(Math.max(...dates)).toISOString().slice(0,10)) : '';
+    const statusBadge = {draft:'badge-draft',sent:'badge-sent',paid:'badge-paid'};
+    return `<div class="inv-card">
+      <div class="inv-hdr" data-inv="${inv.id}">
+        <div>
+          <div style="font-weight:500;font-size:13px">${esc(client?.name||'Unknown')}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">#${inv.id.slice(0,8).toUpperCase()} · ${mn}${mx!==mn?` – ${mx}`:''} · ${invEnts.length} entries</div>
+        </div>
+        <div style="display:flex;gap:11px;align-items:center">
+          <span class="badge ${statusBadge[inv.status]||''}">${inv.status}</span>
+          <span class="amber mono-num" style="font-weight:600;font-size:14px">${$m(inv.total_amount)}</span>
+          <span class="muted" style="font-size:16px">›</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  main.innerHTML = `
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Invoices</div><div class="topbar-sub">${STATE.invoices.length} total · ${active.length} active</div></div>
+    </div>
+    <div class="content">
+      ${STATE.invoices.length===0?'<div class="empty">No invoices yet. Build one from a client page.</div>':''}
+      ${active.length>0?`<div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px">Active</div>${active.map(invCard).join('')}<div style="height:16px"></div>`:''}
+      ${archived.length>0?`<div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px">Archived (Paid)</div>${archived.map(invCard).join('')}`:''}
+    </div>`;
+
+  main.querySelectorAll('[data-inv]').forEach(el => {
+    el.onclick = () => { const inv = STATE.invoices.find(i=>i.id===el.dataset.inv); if(inv) openInvoiceDetail(inv); };
+  });
+}
+
+// ── Settings Page ─────────────────────────────────────────────
+function buildSettings(main) {
+  const rateLabels = {shoot_hourly_rate:'Shoot/hr',shoot_day_rate:'Shoot/day',edit_rate_per_minute:'Edit/min',graphic_design_hourly_rate:'GFX/hr',render_hourly_rate:'Render/hr'};
+  main.innerHTML = `
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Settings</div><div class="topbar-sub">Client rates & configuration</div></div>
+      <div class="topbar-actions"><button class="btn btn-primary" id="new-client-btn">+ New Client</button></div>
+    </div>
+    <div class="content">
+      ${STATE.clients.length===0?'<div class="empty">No clients yet</div>':
+        STATE.clients.map(c=>`
+          <div class="card" style="margin-bottom:11px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <span style="font-weight:600;font-size:14px">${esc(c.name)}</span>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost btn-sm" data-view="${c.id}">View</button>
+                <button class="btn btn-ghost btn-sm" data-edit="${c.id}">Edit Rates</button>
+                <button class="btn btn-danger btn-sm" data-del="${c.id}">Delete</button>
+              </div>
+            </div>
+            <div>${Object.entries(c.default_rates||{}).filter(([,v])=>v).map(([k,v])=>`<span class="chip">${rateLabels[k]||k}: ${$m(v)}</span>`).join('')||'<span style="font-size:11px;color:var(--text3)">No rates set</span>'}</div>
+          </div>`).join('')}
+    </div>`;
+
+  $('#new-client-btn').onclick = () => openClientModal();
+  main.querySelectorAll('[data-view]').forEach(b=>{ b.onclick=()=>nav('client',b.dataset.view); });
+  main.querySelectorAll('[data-edit]').forEach(b=>{ b.onclick=()=>{ const c=STATE.clients.find(x=>x.id===b.dataset.edit); openClientModal(c); }; });
+  main.querySelectorAll('[data-del]').forEach(b=>{ b.onclick=async()=>{
+    if(!confirm('Delete client and all their data?'))return;
+    await sb.from('clients').delete().eq('id',b.dataset.del);
+    fetchAll();
+  }; });
+}
+
+// ── MODALS ────────────────────────────────────────────────────
+function makeOverlay(content, wide=false) {
+  const ov = el('div','overlay');
+  const mo = el('div', wide?'modal wide':'modal');
+  mo.innerHTML = content;
+  ov.appendChild(mo);
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e=>{ if(e.target===ov) ov.remove(); });
+  return {ov, mo};
+}
+
+// Client modal
+function openClientModal(client=null) {
+  const rates = client?.default_rates||{};
+  const rFields = [
+    {key:'shoot_hourly_rate',label:'Shoot — Hourly ($)',ph:'150'},
+    {key:'shoot_day_rate',label:'Shoot — Day Rate ($)',ph:'1200'},
+    {key:'edit_rate_per_minute',label:'Edit — Per Minute ($)',ph:'8'},
+    {key:'graphic_design_hourly_rate',label:'Graphic Design — Hourly ($)',ph:'120'},
+    {key:'render_hourly_rate',label:'Render — Hourly ($)',ph:'100'},
+  ];
+  const {ov,mo} = makeOverlay(`
+    <div class="modal-hdr">
+      <span style="font-weight:600;font-size:13px">${client?'Edit Client':'New Client'}</span>
+      <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <div><label>Client Name</label><input id="c-name" value="${esc(client?.name||'')}" placeholder="Acme Corp"></div>
+        <div style="margin-top:4px">
+          <div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px">Default Rates</div>
+          <div class="fr c2">
+            ${rFields.map(f=>`<div><label>${f.label}</label><input type="number" step="0.01" min="0" id="r-${f.key}" value="${rates[f.key]||''}" placeholder="${f.ph}"></div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" id="m-cancel">Cancel</button>
+      <button class="btn btn-primary" id="m-save">Save Client</button>
+    </div>`);
+
+  mo.querySelector('#m-close').onclick = mo.querySelector('#m-cancel').onclick = () => ov.remove();
+  mo.querySelector('#c-name').focus();
+  mo.querySelector('#m-save').onclick = async () => {
+    const name = mo.querySelector('#c-name').value.trim();
+    if (!name) return;
+    const dr = {};
+    rFields.forEach(f=>{ const v=mo.querySelector(`#r-${f.key}`).value; if(v) dr[f.key]=Number(v); });
+    if (client) {
+      await sb.from('clients').update({name,default_rates:dr}).eq('id',client.id);
+    } else {
+      await sb.from('clients').insert({name,default_rates:dr,user_id:STATE.user.id});
+    }
+    ov.remove(); fetchAll();
+  };
+}
+
+// Entry modal
+function openEntryModal(client, entry=null) {
+  const e = entry||{};
+  const rates = client.default_rates||{};
+
+  function getDefaultRate(type, billing_mode) {
+    if (type==='shoot') return billing_mode==='day_rate' ? Number(rates.shoot_day_rate||0) : Number(rates.shoot_hourly_rate||0);
+    if (type==='edit') return Number(rates.edit_rate_per_minute||0);
+    if (type==='graphic_design') return Number(rates.graphic_design_hourly_rate||0);
+    if (type==='render') return Number(rates.render_hourly_rate||0);
+    return 0;
+  }
+
+  const {ov,mo} = makeOverlay(`
+    <div class="modal-hdr">
+      <span style="font-weight:600;font-size:13px">${entry?'Edit Entry':'New Entry'} — ${esc(client.name)}</span>
+      <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <div class="fr c2">
+          <div><label>Type</label>
+            <select id="e-type">
+              <option value="shoot"${(e.type||'shoot')==='shoot'?' selected':''}>Shoot</option>
+              <option value="edit"${e.type==='edit'?' selected':''}>Edit</option>
+              <option value="graphic_design"${e.type==='graphic_design'?' selected':''}>Graphic Design</option>
+              <option value="render"${e.type==='render'?' selected':''}>Render</option>
+            </select>
+          </div>
+          <div><label>Date</label><input type="date" id="e-date" value="${e.date||today()}"></div>
+        </div>
+        <div><label>Title / Description</label><input id="e-title" value="${esc(e.title||'')}" placeholder="e.g. Campaign shoot day 1"></div>
+        <div id="e-type-fields"></div>
+        <div class="fr c2">
+          <div><label>Rate Override (optional)</label><input type="number" step="0.01" min="0" id="e-rate" value="${e.rate_override||''}" placeholder="Default rate"></div>
+          <div style="display:flex;flex-direction:column;justify-content:flex-end">
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:7px 11px;display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text3);font-size:11px">TOTAL</span>
+              <span class="amber mono-num" style="font-weight:600;font-size:16px" id="e-preview">$0.00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" id="m-cancel">Cancel</button>
+      <button class="btn btn-primary" id="m-save">Save Entry</button>
+    </div>`);
+
+  mo.querySelector('#m-close').onclick = mo.querySelector('#m-cancel').onclick = () => ov.remove();
+  mo.querySelector('#e-title').focus();
+
+  function getFormVals() {
+    return {
+      type: mo.querySelector('#e-type').value,
+      date: mo.querySelector('#e-date').value,
+      title: mo.querySelector('#e-title').value.trim(),
+      billing_mode: mo.querySelector('#e-billing-mode')?.value||'hourly',
+      hours: mo.querySelector('#e-hours')?.value||null,
+      duration_minutes: mo.querySelector('#e-mins')?.value||null,
+      category: mo.querySelector('#e-cat')?.value||'basic',
+      rate_override: mo.querySelector('#e-rate').value||null,
+    };
+  }
+
+  function updateTypeFields() {
+    const type = mo.querySelector('#e-type').value;
+    const tf = mo.querySelector('#e-type-fields');
+    if (type==='shoot') {
+      tf.innerHTML = `<div class="fr c2">
+        <div><label>Billing Mode</label>
+          <select id="e-billing-mode">
+            <option value="hourly"${(e.billing_mode||'hourly')==='hourly'?' selected':''}>Hourly</option>
+            <option value="day_rate"${e.billing_mode==='day_rate'?' selected':''}>Day Rate</option>
+          </select>
+        </div>
+        <div id="e-hours-wrap"><label>Hours</label><input type="number" step="0.5" min="0" id="e-hours" value="${e.hours||''}" placeholder="8"></div>
+      </div>`;
+      mo.querySelector('#e-billing-mode').onchange = () => {
+        const dm = mo.querySelector('#e-billing-mode').value;
+        const hw = mo.querySelector('#e-hours-wrap');
+        hw.style.display = dm==='day_rate'?'none':'block';
+        mo.querySelector('#e-rate').placeholder = `Default: ${$m(getDefaultRate(type,dm))}`;
+        updatePreview();
+      };
+      if (e.billing_mode==='day_rate') mo.querySelector('#e-hours-wrap').style.display='none';
+      mo.querySelector('#e-rate').placeholder = `Default: ${$m(getDefaultRate(type,e.billing_mode||'hourly'))}`;
+    } else if (type==='edit') {
+      tf.innerHTML = `<div class="fr c2">
+        <div><label>Duration (minutes)</label><input type="number" min="0" step="1" id="e-mins" value="${e.duration_minutes||''}" placeholder="120"></div>
+        <div><label>Category</label>
+          <select id="e-cat">
+            ${Object.entries(EDIT_CATS).map(([k,v])=>`<option value="${k}"${(e.category||'basic')===k?' selected':''}>${v.label} (×${v.mult})</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
+      mo.querySelector('#e-rate').placeholder = `Default: ${$m(getDefaultRate(type))}`;
+    } else {
+      tf.innerHTML = `<div class="fr c2">
+        <div><label>Hours</label><input type="number" step="0.5" min="0" id="e-hours" value="${e.hours||''}" placeholder="4"></div>
+        <div></div>
+      </div>`;
+      mo.querySelector('#e-rate').placeholder = `Default: ${$m(getDefaultRate(type))}`;
+    }
+    // wire up inputs to preview
+    tf.querySelectorAll('input,select').forEach(i=>{ i.oninput=i.onchange=updatePreview; });
+    mo.querySelector('#e-rate').oninput = updatePreview;
+    updatePreview();
+  }
+
+  function updatePreview() {
+    const vals = getFormVals();
+    const clientForCalc = { default_rates: client.default_rates };
+    const tot = computeTotal(vals, clientForCalc);
+    mo.querySelector('#e-preview').textContent = $m(tot);
+  }
+
+  mo.querySelector('#e-type').onchange = updateTypeFields;
+  updateTypeFields();
+
+  mo.querySelector('#m-save').onclick = async () => {
+    const vals = getFormVals();
+    if (!vals.title||!vals.date) return;
+    const computed = computeTotal(vals, client);
+    const payload = {
+      type: vals.type, title: vals.title, date: vals.date,
+      billing_mode: vals.type==='shoot'?vals.billing_mode:null,
+      hours: vals.hours!==null?Number(vals.hours):null,
+      duration_minutes: vals.duration_minutes!==null?Number(vals.duration_minutes):null,
+      category: vals.category||null,
+      rate_override: vals.rate_override!==null&&vals.rate_override!==''?Number(vals.rate_override):null,
+      computed_total: computed,
+    };
+    if (entry) {
+      await sb.from('entries').update(payload).eq('id',entry.id);
+    } else {
+      await sb.from('entries').insert({...payload, client_id:client.id, user_id:STATE.user.id, invoiced:false, invoice_id:null});
+    }
+    ov.remove(); fetchAll();
+  };
+}
+
+// Build invoice modal
+function openBuildInvoiceModal(client, uninvoiced) {
+  const sel = new Set(uninvoiced.map(e=>e.id));
+
+  const {ov,mo} = makeOverlay(`
+    <div class="modal-hdr">
+      <span style="font-weight:600;font-size:13px">Build Invoice — ${esc(client.name)}</span>
+      <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px">
+        <label style="display:flex;align-items:center;gap:8px;margin:0;text-transform:none;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="sel-all" checked> Select all (${uninvoiced.length})
+        </label>
+        <span id="sel-count" style="font-size:11px;color:var(--text3)">${uninvoiced.length} selected</span>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;max-height:260px;overflow-y:auto;margin-bottom:14px" id="entry-list">
+        ${uninvoiced.map(e=>`
+          <label style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid var(--border);cursor:pointer;background:rgba(212,168,67,.05)" data-eid="${e.id}">
+            <input type="checkbox" class="entry-chk" data-id="${e.id}" checked>
+            <span class="badge badge-${e.type==='graphic_design'?'gfx':e.type}">${{shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER'}[e.type]||e.type}</span>
+            <span style="flex:1;font-size:12px">${esc(e.title)}</span>
+            <span style="font-size:11px;color:var(--text3);margin-right:11px">${$d(e.date)}</span>
+            <span class="amber mono-num" style="font-weight:600;font-size:13px">${$m(e.computed_total)}</span>
+          </label>`).join('')}
+      </div>
+      <div id="inv-preview"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" id="m-cancel">Cancel</button>
+      <button class="btn btn-primary" id="m-build">Generate Invoice Draft</button>
+    </div>`, true);
+
+  mo.querySelector('#m-close').onclick = mo.querySelector('#m-cancel').onclick = () => ov.remove();
+
+  function updatePreview() {
+    const selected = uninvoiced.filter(e=>sel.has(e.id));
+    mo.querySelector('#sel-count').textContent = `${selected.length} selected`;
+    mo.querySelector('#sel-all').checked = selected.length===uninvoiced.length;
+    mo.querySelector('#sel-all').indeterminate = selected.length>0&&selected.length<uninvoiced.length;
+    mo.querySelector('#m-build').disabled = selected.length===0;
+
+    if (!selected.length) { mo.querySelector('#inv-preview').innerHTML=''; return; }
+    const byType = {};
+    const typeGroupLabels = {shoot:'Shoots',edit:'Edits',graphic_design:'Graphic Design',render:'Renders'};
+    selected.forEach(e=>{ if(!byType[e.type]){byType[e.type]={n:0,tot:0};} byType[e.type].n++; byType[e.type].tot+=Number(e.computed_total||0); });
+    const total = selected.reduce((s,e)=>s+Number(e.computed_total||0),0);
+    mo.querySelector('#inv-preview').innerHTML = `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+        <div style="padding:7px 11px;font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--border)">Invoice Preview</div>
+        ${Object.entries(byType).map(([t,{n,tot}])=>`<div class="total-row"><span style="color:var(--text2)">${typeGroupLabels[t]||t} (${n})</span><span class="mono-num">${$m(tot)}</span></div>`).join('')}
+        <div class="total-row total-grand"><span>Total</span><span>${$m(total)}</span></div>
+      </div>`;
+  }
+
+  mo.querySelectorAll('.entry-chk').forEach(chk=>{
+    chk.onchange = () => { chk.checked ? sel.add(chk.dataset.id) : sel.delete(chk.dataset.id); updatePreview(); };
+  });
+  mo.querySelector('#sel-all').onchange = e => {
+    if (e.target.checked) uninvoiced.forEach(en=>sel.add(en.id)); else sel.clear();
+    mo.querySelectorAll('.entry-chk').forEach(c=>{ c.checked=sel.has(c.dataset.id); });
+    updatePreview();
+  };
+  updatePreview();
+
+  mo.querySelector('#m-build').onclick = async () => {
+    const ids = Array.from(sel);
+    const selEnts = uninvoiced.filter(e=>ids.includes(e.id));
+    const total = selEnts.reduce((s,e)=>s+Number(e.computed_total||0),0);
+    const {data:inv} = await sb.from('invoices').insert({
+      client_id:client.id, user_id:STATE.user.id,
+      entry_ids:ids, status:'draft', total_amount:total,
+    }).select().single();
+    if (inv) await sb.from('entries').update({invoiced:true,invoice_id:inv.id}).in('id',ids);
+    ov.remove(); fetchAll();
+  };
+}
+
+// Invoice detail modal
+function openInvoiceDetail(inv) {
+  const client   = STATE.clients.find(c=>c.id===inv.client_id);
+  const invEnts  = STATE.entries.filter(e=>(inv.entry_ids||[]).includes(e.id));
+  const byType   = {};
+  const typeGroupLabels = {shoot:'Shoots',edit:'Edits',graphic_design:'Graphic Design',render:'Renders'};
+  invEnts.forEach(e=>{ if(!byType[e.type])byType[e.type]=[]; byType[e.type].push(e); });
+
+  const dates  = invEnts.map(e=>new Date(e.date+'T00:00:00')).filter(d=>!isNaN(d));
+  const mn = dates.length ? $d(new Date(Math.min(...dates)).toISOString().slice(0,10)) : '';
+  const mx = dates.length ? $d(new Date(Math.max(...dates)).toISOString().slice(0,10)) : '';
+  const statusBadge = {draft:'badge-draft',sent:'badge-sent',paid:'badge-paid'};
+
+  const {ov,mo} = makeOverlay(`
+    <div class="modal-hdr">
+      <div>
+        <div style="font-weight:600;font-size:13px">Invoice #${inv.id.slice(0,8).toUpperCase()}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(client?.name||'')} · ${mn}${mx!==mn?` – ${mx}`:''}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge ${statusBadge[inv.status]||''}">${inv.status}</span>
+        <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      ${Object.entries(byType).map(([type,ents])=>`
+        <div style="margin-bottom:14px">
+          <div style="font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:5px">${typeGroupLabels[type]||type}</div>
+          ${ents.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px">
+            <span style="color:var(--text2)">${esc(e.title)}</span>
+            <span style="display:flex;gap:14px;align-items:center">
+              <span class="muted" style="font-size:11px">${$d(e.date)}</span>
+              <span class="mono-num" style="font-weight:600;min-width:78px;text-align:right">${$m(e.computed_total)}</span>
+            </span>
+          </div>`).join('')}
+        </div>`).join('')}
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:16px;font-weight:600">
+        <span>Total</span><span class="amber">${$m(inv.total_amount)}</span>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1"><label>Stripe Invoice ID</label><input id="stripe-id" value="${esc(inv.stripe_invoice_id||'')}" placeholder="in_xxxxxxxxxxxxxxxx"></div>
+        <button class="btn btn-ghost btn-sm" id="stripe-save" style="margin-bottom:1px">Save</button>
+      </div>
+    </div>
+    <div class="modal-ftr" id="inv-actions">
+      ${inv.status==='draft'?'<button class="btn btn-primary" id="mark-sent">Mark as Sent</button>':''}
+      ${inv.status==='sent' ?'<button class="btn btn-green"   id="mark-paid">Mark as Paid ✓</button>':''}
+      ${inv.status==='paid' ?'<span style="font-size:12px;color:var(--green2)">✓ Paid</span>':''}
+    </div>`, true);
+
+  mo.querySelector('#m-close').onclick = () => ov.remove();
+  mo.querySelector('#stripe-save').onclick = async () => {
+    const sid = mo.querySelector('#stripe-id').value.trim();
+    await sb.from('invoices').update({stripe_invoice_id:sid}).eq('id',inv.id);
+    fetchAll();
+  };
+  if (mo.querySelector('#mark-sent')) mo.querySelector('#mark-sent').onclick = async () => {
+    await sb.from('invoices').update({status:'sent'}).eq('id',inv.id);
+    ov.remove(); fetchAll();
+  };
+  if (mo.querySelector('#mark-paid')) mo.querySelector('#mark-paid').onclick = async () => {
+    await sb.from('invoices').update({status:'paid'}).eq('id',inv.id);
+    ov.remove(); fetchAll();
+  };
+}
+
+// ── Util ──────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Boot ──────────────────────────────────────────────────────
+(async () => {
+  // Check config
+  if (SUPABASE_URL==='https://imhgracudccwhulfqggn.supabase.co') {
+    document.getElementById('app').innerHTML = `<div class="auth-wrap"><div class="auth-box" style="text-align:center">
+      <div class="wordmark" style="font-size:20px;margin-bottom:16px">LEDGER</div>
+      <div class="err" style="text-align:left">⚠ Open this file in a text editor and replace <code>YOUR_SUPABASE_URL</code> and <code>YOUR_SUPABASE_ANON_KEY</code> with your actual Supabase credentials (near the top of the &lt;script&gt; tag).</div>
+    </div></div>`;
+    return;
+  }
+
+  sb.auth.onAuthStateChange(async (_event, session) => {
+    STATE.user = session?.user || null;
+    if (STATE.user) {
+      STATE.loading = false;
+      await fetchAll();
+    } else {
+      STATE.loading = false;
+      STATE.clients=[]; STATE.entries=[]; STATE.invoices=[];
+      render();
+    }
+  });
+
+  const {data:{session}} = await sb.auth.getSession();
+  STATE.user = session?.user || null;
+  STATE.loading = false;
+  if (STATE.user) await fetchAll(); else render();
+})();
+</script>
+</body>
+</html>
