@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e0e0e">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+<meta name="apple-mobile-web-app-title" content="Invoice Log">
+<title>Invoice Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e0e;--bg2:#161616;--bg3:#1e1e1e;--bg4:#262626;
+  --border:#2a2a2a;--border2:#383838;
+  --text:#e8e4d9;--text2:#8a8478;--text3:#5a5650;
+  --amber:#d4a843;--amber2:#f0c060;--amber3:#8a6820;
+  --green:#4a9960;--green2:#6ab87a;
+  --red:#c04848;--blue2:#6a9ad4;
+  --mono:'IBM Plex Mono',monospace;--r:3px;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:var(--mono);cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:var(--mono);background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:var(--r);padding:7px 10px;font-size:12px;outline:none;width:100%;-webkit-appearance:none;appearance:none}
+input:focus,select:focus{border-color:var(--amber);box-shadow:0 0 0 2px rgba(212,168,67,.15)}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235a5650' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+select option{background:var(--bg3)}
+label{font-size:11px;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px}
+input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--amber);flex-shrink:0}
+
+#app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:196px;min-width:196px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.wordmark{font-size:13px;font-weight:600;letter-spacing:.14em;color:var(--amber)}
+.wordmark-sub{font-size:10px;color:var(--text3);letter-spacing:.1em;margin-top:2px}
+.nav-section{padding:12px 16px 4px;font-size:9px;color:var(--text3);letter-spacing:.15em;text-transform:uppercase}
+.nav-item{padding:9px 16px;font-size:12px;cursor:pointer;color:var(--text2);border-left:2px solid transparent;transition:all .1s;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+.nav-item:hover{color:var(--text);background:var(--bg3)}
+.nav-item.active{color:var(--amber);border-left-color:var(--amber);background:rgba(212,168,67,.06)}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:var(--amber3);flex-shrink:0}
+.sidebar-footer{margin-top:auto;border-top:1px solid var(--border);padding:12px 16px}
+
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
+.topbar{padding:13px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg);position:sticky;top:0;z-index:10;flex-shrink:0;gap:12px}
+.topbar-left{min-width:0}
+.topbar-title{font-size:14px;font-weight:600;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.topbar-actions{display:flex;gap:8px;flex-shrink:0;align-items:center}
+.content{padding:18px 22px;flex:1}
+
+.btn{padding:6px 13px;border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer;transition:all .1s;letter-spacing:.04em;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--amber);color:#0e0e0e;border:1px solid var(--amber)}
+.btn-primary:not(:disabled):hover{background:var(--amber2)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{color:var(--text);background:var(--bg3)}
+.btn-danger{background:transparent;color:var(--red);border:1px solid transparent}
+.btn-danger:hover{border-color:var(--red);background:rgba(192,72,72,.08)}
+.btn-green{background:var(--green);color:#fff;border:1px solid var(--green)}
+.btn-green:not(:disabled):hover{background:var(--green2)}
+.btn-sm{padding:4px 9px;font-size:11px}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
+.stat{background:var(--bg2);border:1px solid var(--border);padding:13px;border-radius:var(--r)}
+.stat-label{font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+.stat-val{font-size:20px;font-weight:600;color:var(--amber)}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:15px}
+
+.client-row{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:7px;cursor:pointer;transition:all .1s;background:var(--bg2)}
+.client-row:hover{border-color:var(--border2);background:var(--bg3)}
+
+.entry-table{border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.entry-row{display:grid;grid-template-columns:14px 1fr 80px 90px 58px 28px;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid var(--border);font-size:12px;transition:background .1s}
+.entry-row:last-child{border-bottom:none}
+.entry-row:hover{background:var(--bg3)}
+.section-hdr{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);padding:7px 11px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+
+.badge{font-size:9px;padding:2px 5px;border-radius:2px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;white-space:nowrap}
+.badge-shoot{background:rgba(74,152,96,.2);color:var(--green2)}
+.badge-edit{background:rgba(72,120,184,.2);color:var(--blue2)}
+.badge-gfx{background:rgba(180,80,180,.2);color:#c880c8}
+.badge-render{background:rgba(180,120,40,.2);color:#d4904a}
+.badge-preset{background:rgba(212,168,67,.15);color:var(--amber)}
+.badge-draft{background:rgba(212,168,67,.2);color:var(--amber)}
+.badge-sent{background:rgba(72,120,184,.2);color:var(--blue2)}
+.badge-paid{background:rgba(74,152,96,.2);color:var(--green2)}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot-on{background:var(--amber)}
+.dot-off{background:var(--text3)}
+
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:14px}
+.tab{padding:7px 14px;font-size:12px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .1s}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);width:100%;max-width:540px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column}
+.modal.wide{max-width:680px}
+.modal-hdr{padding:15px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-body{padding:18px;flex:1;overflow-y:auto}
+.modal-ftr{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+
+.fg{display:flex;flex-direction:column;gap:11px}
+.fr{display:grid;gap:11px}
+.c2{grid-template-columns:1fr 1fr}
+.c3{grid-template-columns:1fr 1fr 1fr}
+
+.inv-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:9px;overflow:hidden}
+.inv-hdr{padding:11px 15px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .1s}
+.inv-hdr:hover{background:var(--bg3)}
+
+.divider{height:1px;background:var(--border);margin:14px 0}
+.chip{display:inline-flex;padding:2px 7px;border-radius:2px;font-size:10px;background:var(--bg4);border:1px solid var(--border);color:var(--text2);margin:2px}
+.total-row{display:flex;justify-content:space-between;padding:7px 11px;font-size:13px}
+.total-grand{border-top:1px solid var(--border2);font-weight:600;color:var(--amber);font-size:14px}
+.empty{padding:44px 20px;text-align:center;color:var(--text3);font-size:12px;border:1px dashed var(--border);border-radius:var(--r)}
+.kbd{background:var(--bg4);border:1px solid var(--border2);border-radius:2px;padding:1px 5px;font-size:10px;color:var(--text3)}
+.mono-num{font-variant-numeric:tabular-nums}
+.amber{color:var(--amber)}
+.muted{color:var(--text3)}
+.err{background:rgba(192,72,72,.1);border:1px solid rgba(192,72,72,.3);color:#e06060;padding:9px 13px;border-radius:var(--r);font-size:12px;margin-bottom:11px}
+.ok{background:rgba(74,152,96,.1);border:1px solid rgba(74,152,96,.3);color:var(--green2);padding:9px 13px;border-radius:var(--r);font-size:12px;margin-bottom:11px}
+.loading-screen{display:flex;align-items:center;justify-content:center;height:100vh;color:var(--text3);font-size:12px;letter-spacing:.1em}
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}
+.auth-box{width:100%;max-width:360px}
+
+/* Preset rows in settings */
+.preset-row{display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid var(--border);font-size:12px}
+.preset-row:last-child{border-bottom:none}
+
+/* Billing mode toggle */
+.mode-toggle{display:flex;gap:6px;margin-bottom:2px}
+.mode-btn{padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;transition:all .1s;border:1px solid var(--border2);color:var(--text3);background:transparent;font-family:var(--mono)}
+.mode-btn.active{background:var(--amber);color:#0e0e0e;border-color:var(--amber)}
+
+/* Preset picker in entry modal */
+.preset-pick{display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);padding:6px}
+.preset-opt{padding:7px 10px;border-radius:2px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:12px;transition:background .1s}
+.preset-opt:hover{background:var(--bg3)}
+.preset-opt.selected{background:rgba(212,168,67,.12);border:1px solid rgba(212,168,67,.3)}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px}
+
+@media(max-width:600px){
+  .sidebar{width:150px;min-width:150px}
+  .content{padding:12px 14px}
+  .topbar{padding:11px 14px}
+  .entry-row{grid-template-columns:12px 1fr 70px 26px}
+  .entry-date-col,.entry-edit-col{display:none}
+  .c2,.c3{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading-screen">loading…</div></div>
+<script>
+const SUPABASE_URL = 'https://imhgracudccwhulfqggn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_OAwlQmcjdTi8MsuyVyL6bA_WuWXmWi5';
+
+let sb;
+try {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) {
+  document.getElementById('app').innerHTML='<div class="loading-screen" style="flex-direction:column;gap:12px"><span style="color:#e06060">⚠ Supabase failed to initialise.</span><span style="font-size:11px;color:#5a5650">'+e.message+'</span></div>';
+}
+
+// ── Billing ───────────────────────────────────────────────────
+const EDIT_CATS = {
+  basic:    {label:'Basic',    mult:1},
+  standard: {label:'Standard', mult:1.5},
+  heavy:    {label:'Heavy',    mult:2.2},
+  complex:  {label:'Complex',  mult:3},
+};
+function computeTotal(e, client) {
+  const r = client?.default_rates || {};
+  const n = v => Number(v||0);
+  if (e.billing_mode === 'preset') return n(e.rate_override || e.computed_total);
+  if (e.type==='shoot') {
+    if (e.billing_mode==='day_rate') return n(e.rate_override??r.shoot_day_rate);
+    return n(e.rate_override??r.shoot_hourly_rate) * n(e.hours);
+  }
+  if (e.type==='edit') return n(e.rate_override??r.edit_rate_per_minute) * n(e.duration_minutes) * (EDIT_CATS[e.category]?.mult||1);
+  if (e.type==='graphic_design') return n(e.rate_override??r.graphic_design_hourly_rate) * n(e.hours);
+  if (e.type==='render')         return n(e.rate_override??r.render_hourly_rate) * n(e.hours);
+  return 0;
+}
+const $m = n => '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const $d = d => { if(!d)return''; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}); };
+const today = () => new Date().toISOString().slice(0,10);
+
+// ── State ─────────────────────────────────────────────────────
+let STATE = {user:null, clients:[], entries:[], invoices:[], page:'dashboard', pageParam:null, loading:true};
+
+// ── DOM helpers ───────────────────────────────────────────────
+const $  = s => document.querySelector(s);
+const el = (tag,cls,html='') => { const e=document.createElement(tag); if(cls)e.className=cls; if(html)e.innerHTML=html; return e; };
+function render() { $('#app').innerHTML=''; buildApp(); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Data ──────────────────────────────────────────────────────
+async function fetchAll() {
+  if (!STATE.user) return;
+  const [c,e,i] = await Promise.all([
+    sb.from('clients').select('*').order('created_at'),
+    sb.from('entries').select('*').order('date',{ascending:false}),
+    sb.from('invoices').select('*').order('created_at',{ascending:false}),
+  ]);
+  STATE.clients  = c.data||[];
+  STATE.entries  = e.data||[];
+  STATE.invoices = i.data||[];
+  render();
+}
+
+// ── Router ────────────────────────────────────────────────────
+function nav(page, param=null) { STATE.page=page; STATE.pageParam=param; render(); }
+
+// ── App shell ─────────────────────────────────────────────────
+function buildApp() {
+  if (STATE.loading) { $('#app').innerHTML='<div class="loading-screen">loading…</div>'; return; }
+  if (!STATE.user)   { buildAuth(); return; }
+
+  const app = $('#app');
+  const sb_el = el('div','sidebar');
+  sb_el.innerHTML = `
+    <div class="sidebar-logo">
+      <div class="wordmark">INVOICE LOG</div>
+      <div class="wordmark-sub">for creatives</div>
+    </div>
+    <div class="nav-section">Navigation</div>
+    <div class="nav-item${STATE.page==='dashboard'||STATE.page==='client'?' active':''}" data-nav="dashboard"><span style="font-size:14px">⊞</span> Dashboard</div>
+    <div class="nav-item${STATE.page==='invoices'?' active':''}" data-nav="invoices"><span style="font-size:14px">◈</span> Invoices</div>
+    <div class="nav-item${STATE.page==='settings'?' active':''}" data-nav="settings"><span style="font-size:14px">◎</span> Settings</div>
+    <div class="nav-section">Clients</div>
+    ${STATE.clients.slice(0,12).map(c=>`
+      <div class="nav-item${STATE.page==='client'&&STATE.pageParam===c.id?' active':''}" data-nav="client" data-id="${c.id}" style="font-size:11px;padding-left:20px">
+        <span class="nav-dot"></span>${esc(c.name.length>17?c.name.slice(0,17)+'…':c.name)}
+      </div>`).join('')}
+    ${STATE.clients.length===0?'<div style="padding:6px 20px;font-size:11px;color:var(--text3)">No clients</div>':''}
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-sm" id="signout-btn" style="width:100%;justify-content:center;font-size:11px">Sign out</button>
+    </div>`;
+  app.appendChild(sb_el);
+
+  const main = el('div','main');
+  app.appendChild(main);
+
+  sb_el.querySelectorAll('[data-nav]').forEach(n => {
+    n.onclick = () => nav(n.dataset.nav, n.dataset.id||null);
+  });
+  $('#signout-btn').onclick = async () => { await sb.auth.signOut(); };
+
+  if (STATE.page==='dashboard') buildDashboard(main);
+  else if (STATE.page==='client') buildClientDetail(main);
+  else if (STATE.page==='invoices') buildInvoices(main);
+  else if (STATE.page==='settings') buildSettings(main);
+}
+
+// ── Auth ──────────────────────────────────────────────────────
+function buildAuth() {
+  $('#app').innerHTML = `
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <div style="text-align:center;margin-bottom:28px">
+        <div class="wordmark" style="font-size:16px">INVOICE LOG</div>
+        <div class="wordmark-sub" style="margin-top:4px;font-size:11px">for creatives</div>
+      </div>
+      <div class="card">
+        <div id="auth-msg"></div>
+        <div class="fg">
+          <div><label>Email</label><input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email"></div>
+          <div><label>Password</label><input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password"></div>
+          <button class="btn btn-primary" id="auth-submit" style="justify-content:center">Log in</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  $('#auth-email').focus();
+
+  async function submit() {
+    const email=$('#auth-email').value.trim(), pass=$('#auth-pass').value;
+    if (!email||!pass) return;
+    $('#auth-submit').disabled=true;
+    $('#auth-submit').textContent='Logging in…';
+    $('#auth-msg').innerHTML='';
+    const {error} = await sb.auth.signInWithPassword({email,password:pass});
+    if (error) {
+      $('#auth-msg').innerHTML=`<div class="err">${esc(error.message)}</div>`;
+      $('#auth-submit').disabled=false;
+      $('#auth-submit').textContent='Log in';
+    }
+  }
+  $('#auth-submit').onclick = submit;
+  ['auth-email','auth-pass'].forEach(id=>{ document.getElementById(id).addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); }); });
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+function buildDashboard(main) {
+  const uninvTot = cid => STATE.entries.filter(e=>e.client_id===cid&&!e.invoiced).reduce((s,e)=>s+Number(e.computed_total||0),0);
+  const pendTot  = () => STATE.invoices.filter(i=>i.status!=='paid').reduce((s,i)=>s+Number(i.total_amount||0),0);
+  const paidTot  = () => STATE.invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+Number(i.total_amount||0),0);
+  const openEnts = STATE.entries.filter(e=>!e.invoiced).length;
+  const allUnbil = STATE.clients.reduce((s,c)=>s+uninvTot(c.id),0);
+
+  main.innerHTML = `
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Dashboard</div><div class="topbar-sub">Invoice Log overview</div></div>
+      <div class="topbar-actions"><button class="btn btn-primary" id="new-client-btn">+ New Client</button></div>
+    </div>
+    <div class="content">
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">Unbilled Work</div><div class="stat-val">${$m(allUnbil)}</div><div class="stat-sub">${openEnts} open entries</div></div>
+        <div class="stat"><div class="stat-label">Invoiced (Pending)</div><div class="stat-val" style="color:var(--blue2)">${$m(pendTot())}</div><div class="stat-sub">awaiting payment</div></div>
+        <div class="stat"><div class="stat-label">Paid</div><div class="stat-val" style="color:var(--green2)">${$m(paidTot())}</div><div class="stat-sub">all time</div></div>
+        <div class="stat"><div class="stat-label">Clients</div><div class="stat-val" style="color:var(--text)">${STATE.clients.length}</div><div class="stat-sub">active</div></div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px">Clients</div>
+      ${STATE.clients.length===0?'<div class="empty">Add your first client to start tracking billable work</div>':
+        STATE.clients.map(c=>{
+          const ub=uninvTot(c.id);
+          const cnt=STATE.entries.filter(e=>e.client_id===c.id&&!e.invoiced).length;
+          const pend=STATE.invoices.filter(i=>i.client_id===c.id&&i.status!=='paid').reduce((s,i)=>s+Number(i.total_amount||0),0);
+          return `<div class="client-row" data-client="${c.id}">
+            <div>
+              <div style="font-weight:500;font-size:13px">${esc(c.name)}</div>
+              <div style="font-size:11px;color:var(--text3)">${cnt} uninvoiced entr${cnt===1?'y':'ies'}${pend>0?` <span style="color:var(--blue2)">· ${$m(pend)} pending</span>`:''}</div>
+            </div>
+            <div style="text-align:right">
+              <div class="mono-num${ub===0?' muted':' amber'}" style="font-size:14px;font-weight:600">${$m(ub)}</div>
+              <div style="font-size:10px;color:var(--text3)">unbilled</div>
+            </div>
+          </div>`;
+        }).join('')}
+    </div>`;
+
+  $('#new-client-btn').onclick = () => openClientModal();
+  main.querySelectorAll('[data-client]').forEach(r=>{ r.onclick=()=>nav('client',r.dataset.client); });
+}
+
+// ── Client Detail ─────────────────────────────────────────────
+function buildClientDetail(main) {
+  const client = STATE.clients.find(c=>c.id===STATE.pageParam);
+  if (!client) { main.innerHTML='<div class="content muted">Client not found.</div>'; return; }
+
+  const entries    = STATE.entries.filter(e=>e.client_id===client.id).sort((a,b)=>b.date.localeCompare(a.date));
+  const uninvoiced = entries.filter(e=>!e.invoiced);
+  const invoiced   = entries.filter(e=>e.invoiced);
+  const unbilTot   = uninvoiced.reduce((s,e)=>s+Number(e.computed_total||0),0);
+  let activeTab = 'uninvoiced';
+
+  function entryDetail(e) {
+    if (e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset') return 'Flat fee';
+    if (e.type==='edit') return `${e.duration_minutes}min · ${EDIT_CATS[e.category]?.label||''}`;
+    if (e.type==='shoot') return e.billing_mode==='day_rate'?'Day Rate':`${e.hours}h`;
+    return `${e.hours}h`;
+  }
+  function typeBadge(e) {
+    if (e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset') {
+      const dt=e.category||'package';
+      const map={shoot:'badge-shoot',edit:'badge-edit',graphic_design:'badge-gfx',render:'badge-render',package:'badge-preset'};
+      const lbl={shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER',package:'PKG'};
+      return `<span class="badge ${map[dt]||'badge-preset'}">${lbl[dt]||'PKG'}</span>`;
+    }
+    const map={shoot:'badge-shoot',edit:'badge-edit',graphic_design:'badge-gfx',render:'badge-render'};
+    const lbl={shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER'};
+    return `<span class="badge ${map[e.type]||''}">${lbl[e.type]||e.type}</span>`;
+  }
+  function entryRows(list, locked) {
+    if (!list.length) return `<div class="empty">${locked?'No invoiced entries':'Press <span class="kbd">+ Entry</span> to add billable work'}</div>`;
+    return `<div class="entry-table">
+      <div class="section-hdr">
+        <span>${locked?'Invoiced Entries':'Uninvoiced Entries'}</span>
+        ${!locked?`<span class="amber mono-num" style="font-weight:600">${$m(unbilTot)}</span>`:''}
+      </div>
+      ${list.map(e=>`
+        <div class="entry-row">
+          <span class="dot ${locked?'dot-off':'dot-on'}"></span>
+          <div style="min-width:0">
+            <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.title)}</div>
+            <div style="font-size:10px;color:var(--text3);display:flex;gap:5px;align-items:center;margin-top:1px">
+              ${typeBadge(e)}<span>${$d(e.date)}</span><span>${entryDetail(e)}</span>
+            </div>
+          </div>
+          <span class="muted entry-date-col" style="font-size:11px;text-align:right">${$d(e.date)}</span>
+          <span class="amber mono-num entry-date-col" style="font-weight:600;text-align:right">${$m(e.computed_total)}</span>
+          <div class="entry-edit-col" style="display:flex;gap:3px;justify-content:flex-end">
+            ${!locked?`<button class="btn btn-ghost btn-sm" data-edit="${e.id}" title="Edit">✎</button>`:''}
+            ${locked?`<button class="btn btn-ghost btn-sm" data-unlock="${e.id}" title="Unlock" style="color:var(--text3);font-size:10px">🔓</button>`:''}
+          </div>
+          <div>
+            ${!locked?`<button class="btn btn-danger btn-sm" data-del="${e.id}" title="Delete">✕</button>`:''}
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  function drawContent(tab) {
+    const panel=$('#client-panel'); if(!panel)return;
+    panel.innerHTML=`
+      <div class="tabs">
+        <div class="tab${tab==='uninvoiced'?' active':''}" data-tab="uninvoiced">Uninvoiced (${uninvoiced.length})</div>
+        <div class="tab${tab==='invoiced'?' active':''}" data-tab="invoiced">Invoiced (${invoiced.length})</div>
+      </div>
+      ${tab==='uninvoiced'?entryRows(uninvoiced,false):entryRows(invoiced,true)}`;
+    panel.querySelectorAll('[data-tab]').forEach(t=>{ t.onclick=()=>{ activeTab=t.dataset.tab; drawContent(activeTab); }; });
+    panel.querySelectorAll('[data-edit]').forEach(b=>{ b.onclick=()=>{ const e=STATE.entries.find(x=>x.id===b.dataset.edit); openEntryModal(client,e); }; });
+    panel.querySelectorAll('[data-del]').forEach(b=>{ b.onclick=()=>deleteEntry(b.dataset.del); });
+    panel.querySelectorAll('[data-unlock]').forEach(b=>{ b.onclick=()=>unlockEntry(b.dataset.unlock); });
+  }
+
+  main.innerHTML=`
+    <div class="topbar">
+      <div class="topbar-left">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="back-btn" style="padding:2px 8px">←</button>
+          <div class="topbar-title">${esc(client.name)}</div>
+        </div>
+        <div class="topbar-sub">${$m(unbilTot)} unbilled · ${uninvoiced.length} entries</div>
+      </div>
+      <div class="topbar-actions">
+        ${uninvoiced.length>0?'<button class="btn btn-ghost" id="build-inv-btn">Create Invoice</button>':''}
+        <button class="btn btn-primary" id="add-entry-btn">+ Entry</button>
+      </div>
+    </div>
+    <div class="content"><div id="client-panel"></div></div>`;
+
+  drawContent(activeTab);
+  $('#back-btn').onclick=()=>nav('dashboard');
+  $('#add-entry-btn').onclick=()=>openEntryModal(client);
+  if ($('#build-inv-btn')) $('#build-inv-btn').onclick=()=>openBuildInvoiceModal(client,uninvoiced);
+
+  async function deleteEntry(id) {
+    if(!confirm('Delete this entry?'))return;
+    await sb.from('entries').delete().eq('id',id); fetchAll();
+  }
+  async function unlockEntry(id) {
+    if(!confirm('Remove from invoice and unlock for editing?'))return;
+    const e=STATE.entries.find(x=>x.id===id);
+    if(e?.invoice_id) {
+      const inv=STATE.invoices.find(i=>i.id===e.invoice_id);
+      if(inv) {
+        const newIds=(inv.entry_ids||[]).filter(x=>x!==id);
+        const newTot=newIds.reduce((s,eid)=>{ const en=STATE.entries.find(x=>x.id===eid); return s+Number(en?.computed_total||0); },0);
+        await sb.from('invoices').update({entry_ids:newIds,total_amount:newTot}).eq('id',inv.id);
+      }
+    }
+    await sb.from('entries').update({invoiced:false,invoice_id:null}).eq('id',id); fetchAll();
+  }
+}
+
+// ── Invoices Page ─────────────────────────────────────────────
+function buildInvoices(main) {
+  const sorted  =[...STATE.invoices].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const active  =sorted.filter(i=>i.status!=='paid');
+  const archived=sorted.filter(i=>i.status==='paid');
+
+  function invCard(inv) {
+    const client  =STATE.clients.find(c=>c.id===inv.client_id);
+    const invEnts =STATE.entries.filter(e=>(inv.entry_ids||[]).includes(e.id));
+    const dates   =invEnts.map(e=>new Date(e.date+'T00:00:00')).filter(d=>!isNaN(d));
+    const mn=dates.length?$d(new Date(Math.min(...dates)).toISOString().slice(0,10)):'';
+    const mx=dates.length?$d(new Date(Math.max(...dates)).toISOString().slice(0,10)):'';
+    const sb_map={draft:'badge-draft',sent:'badge-sent',paid:'badge-paid'};
+    return `<div class="inv-card"><div class="inv-hdr" data-inv="${inv.id}">
+      <div>
+        <div style="font-weight:500;font-size:13px">${esc(client?.name||'Unknown')}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">#${inv.id.slice(0,8).toUpperCase()} · ${mn}${mx!==mn?` – ${mx}`:''} · ${invEnts.length} entries</div>
+      </div>
+      <div style="display:flex;gap:11px;align-items:center">
+        <span class="badge ${sb_map[inv.status]||''}">${inv.status}</span>
+        <span class="amber mono-num" style="font-weight:600;font-size:14px">${$m(inv.total_amount)}</span>
+        <span class="muted" style="font-size:16px">›</span>
+      </div>
+    </div></div>`;
+  }
+
+  main.innerHTML=`
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Invoices</div><div class="topbar-sub">${STATE.invoices.length} total · ${active.length} active</div></div>
+    </div>
+    <div class="content">
+      ${STATE.invoices.length===0?'<div class="empty">No invoices yet. Build one from a client page.</div>':''}
+      ${active.length>0?`<div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px">Active</div>${active.map(invCard).join('')}<div style="height:16px"></div>`:''}
+      ${archived.length>0?`<div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px">Archived (Paid)</div>${archived.map(invCard).join('')}`:''}
+    </div>`;
+  main.querySelectorAll('[data-inv]').forEach(el=>{
+    el.onclick=()=>{ const inv=STATE.invoices.find(i=>i.id===el.dataset.inv); if(inv) openInvoiceDetail(inv); };
+  });
+}
+
+// ── Settings Page ─────────────────────────────────────────────
+function buildSettings(main) {
+  const rateLabels={shoot_hourly_rate:'Shoot/hr',shoot_day_rate:'Shoot/day',edit_rate_per_minute:'Edit/min',graphic_design_hourly_rate:'GFX/hr',render_hourly_rate:'Render/hr'};
+
+  function clientCard(c) {
+    const presets = c.presets||[];
+    return `<div class="card" style="margin-bottom:11px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-weight:600;font-size:14px">${esc(c.name)}</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" data-view="${c.id}">View</button>
+          <button class="btn btn-ghost btn-sm" data-edit="${c.id}">Edit</button>
+          <button class="btn btn-danger btn-sm" data-del="${c.id}">Delete</button>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">Standard Rates</div>
+      <div style="margin-bottom:${presets.length>0?'12px':'0'}">
+        ${Object.entries(c.default_rates||{}).filter(([,v])=>v).map(([k,v])=>`<span class="chip">${rateLabels[k]||k}: ${$m(v)}</span>`).join('')||'<span style="font-size:11px;color:var(--text3)">No rates set</span>'}
+      </div>
+      ${presets.length>0?`
+        <div style="font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">Packages / Presets</div>
+        <div>${presets.map(p=>{
+          const dtLabel={package:'PKG',edit:'EDIT',shoot:'SHOOT',graphic_design:'GFX',render:'RENDER'}[p.display_type||'package']||'PKG';
+          return `<span class="chip" style="background:rgba(212,168,67,.08);border-color:rgba(212,168,67,.2);color:var(--amber)">${esc(p.name)}: ${$m(p.price)} <span style="opacity:.6">[${dtLabel}]</span></span>`;
+        }).join('')}</div>
+      `:''}
+    </div>`;
+  }
+
+  main.innerHTML=`
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Settings</div><div class="topbar-sub">Client rates & packages</div></div>
+      <div class="topbar-actions"><button class="btn btn-primary" id="new-client-btn">+ New Client</button></div>
+    </div>
+    <div class="content">
+      ${STATE.clients.length===0?'<div class="empty">No clients yet</div>':STATE.clients.map(clientCard).join('')}
+    </div>`;
+
+  $('#new-client-btn').onclick=()=>openClientModal();
+  main.querySelectorAll('[data-view]').forEach(b=>{ b.onclick=()=>nav('client',b.dataset.view); });
+  main.querySelectorAll('[data-edit]').forEach(b=>{ b.onclick=()=>{ const c=STATE.clients.find(x=>x.id===b.dataset.edit); openClientModal(c); }; });
+  main.querySelectorAll('[data-del]').forEach(b=>{ b.onclick=async()=>{
+    if(!confirm('Delete client and all their data?'))return;
+    await sb.from('clients').delete().eq('id',b.dataset.del); fetchAll();
+  }; });
+}
+
+// ── Modals ────────────────────────────────────────────────────
+function makeOverlay(content,wide=false) {
+  const ov=el('div','overlay');
+  const mo=el('div',wide?'modal wide':'modal');
+  mo.innerHTML=content;
+  ov.appendChild(mo);
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  return {ov,mo};
+}
+
+// ── Client Modal (with presets) ───────────────────────────────
+function openClientModal(client=null) {
+  const rates   = client?.default_rates||{};
+  // presets stored as JSON array in the presets column
+  let presets   = JSON.parse(JSON.stringify(client?.presets||[]));
+
+  const rFields=[
+    {key:'shoot_hourly_rate',        label:'Shoot — Hourly ($)',         ph:'150'},
+    {key:'shoot_day_rate',           label:'Shoot — Day Rate ($)',        ph:'1200'},
+    {key:'edit_rate_per_minute',     label:'Edit — Per Minute ($)',       ph:'8'},
+    {key:'graphic_design_hourly_rate',label:'Graphic Design — Hourly ($)',ph:'120'},
+    {key:'render_hourly_rate',       label:'Render — Hourly ($)',         ph:'100'},
+  ];
+
+  const {ov,mo}=makeOverlay(`
+    <div class="modal-hdr">
+      <span style="font-weight:600;font-size:13px">${client?'Edit Client':'New Client'}</span>
+      <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <div><label>Client Name</label><input id="c-name" value="${esc(client?.name||'')}" placeholder="Acme Corp"></div>
+
+        <div>
+          <div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--border)">Standard Rates</div>
+          <div class="fr c2" style="margin-top:8px">
+            ${rFields.map(f=>`<div><label>${f.label}</label><input type="number" step="0.01" min="0" id="r-${f.key}" value="${rates[f.key]||''}" placeholder="${f.ph}"></div>`).join('')}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--border)">Packages / Preset Rates</div>
+          <div id="presets-list" style="margin-bottom:10px"></div>
+          <div class="fr c2" style="align-items:flex-end">
+            <div><label>Package Name</label><input id="p-name" placeholder="e.g. Reel Edit Package"></div>
+            <div><label>Price ($)</label><input type="number" step="0.01" min="0" id="p-price" placeholder="600"></div>
+          </div>
+          <div style="margin-top:8px">
+            <label>Display As</label>
+            <select id="p-display-type">
+              <option value="package">Package (PKG)</option>
+              <option value="edit">Edit (EDIT)</option>
+              <option value="shoot">Shoot</option>
+              <option value="graphic_design">Graphic Design (GFX)</option>
+              <option value="render">Render</option>
+            </select>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="add-preset-btn" style="margin-top:8px">+ Add Package</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" id="m-cancel">Cancel</button>
+      <button class="btn btn-primary" id="m-save">Save Client</button>
+    </div>`);
+
+  mo.querySelector('#m-close').onclick=mo.querySelector('#m-cancel').onclick=()=>ov.remove();
+  mo.querySelector('#c-name').focus();
+
+  function renderPresets() {
+    const list=mo.querySelector('#presets-list');
+    if(!presets.length){ list.innerHTML='<div style="font-size:11px;color:var(--text3);margin-bottom:4px">No packages yet</div>'; return; }
+    const dtLabel=dt=>({package:'PKG',edit:'EDIT',shoot:'SHOOT',graphic_design:'GFX',render:'RENDER'}[dt||'package']||'PKG');
+    list.innerHTML=`<div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:4px">
+      ${presets.map((p,i)=>`
+        <div class="preset-row">
+          <span class="badge badge-${p.display_type==='package'?'preset':p.display_type==='graphic_design'?'gfx':p.display_type||'preset'}" style="flex-shrink:0">${dtLabel(p.display_type)}</span>
+          <span style="flex:1;font-weight:500;margin-left:4px">${esc(p.name)}</span>
+          <span class="amber mono-num" style="margin-right:12px">${$m(p.price)}</span>
+          <button class="btn btn-ghost btn-sm" data-pi="${i}" title="Delete preset" style="color:var(--red);border-color:transparent;padding:2px 6px">✕</button>
+        </div>`).join('')}
+    </div>`;
+    list.querySelectorAll('[data-pi]').forEach(b=>{
+      b.onclick=()=>{ presets.splice(Number(b.dataset.pi),1); renderPresets(); };
+    });
+  }
+  renderPresets();
+
+  mo.querySelector('#add-preset-btn').onclick=()=>{
+    const name=mo.querySelector('#p-name').value.trim();
+    const price=mo.querySelector('#p-price').value;
+    const display_type=mo.querySelector('#p-display-type').value||'package';
+    if(!name||!price) return;
+    presets.push({name,price:Number(price),display_type});
+    mo.querySelector('#p-name').value='';
+    mo.querySelector('#p-price').value='';
+    renderPresets();
+    mo.querySelector('#p-name').focus();
+  };
+  // Also allow Enter in preset fields to add
+  mo.querySelector('#p-price').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); mo.querySelector('#add-preset-btn').click(); } });
+
+  mo.querySelector('#m-save').onclick=async()=>{
+    const name=mo.querySelector('#c-name').value.trim();
+    if(!name) return;
+    const dr={};
+    rFields.forEach(f=>{ const v=mo.querySelector(`#r-${f.key}`).value; if(v) dr[f.key]=Number(v); });
+    const btn=mo.querySelector('#m-save');
+    btn.disabled=true; btn.textContent='Saving…';
+    if(client) {
+      const {error}=await sb.from('clients').update({name,default_rates:dr,presets}).eq('id',client.id);
+      if(error){ btn.disabled=false; btn.textContent='Save Client'; alert('Error: '+error.message); return; }
+    } else {
+      const {data,error}=await sb.from('clients').insert({name,default_rates:dr,presets,user_id:STATE.user.id}).select().single();
+      if(error){ btn.disabled=false; btn.textContent='Save Client'; alert('Error: '+error.message); return; }
+      // Immediately add to local state so sidebar updates right away
+      if(data) STATE.clients.push(data);
+    }
+    ov.remove();
+    await fetchAll();
+  };
+}
+
+// ── Entry Modal ───────────────────────────────────────────────
+function openEntryModal(client, entry=null) {
+  const e      = entry||{};
+  const rates  = client.default_rates||{};
+  const presets= client.presets||[];
+
+  function getDefaultRate(type,billing_mode) {
+    if(type==='shoot') return billing_mode==='day_rate'?Number(rates.shoot_day_rate||0):Number(rates.shoot_hourly_rate||0);
+    if(type==='edit')  return Number(rates.edit_rate_per_minute||0);
+    if(type==='graphic_design') return Number(rates.graphic_design_hourly_rate||0);
+    if(type==='render') return Number(rates.render_hourly_rate||0);
+    return 0;
+  }
+
+  // Detect if existing entry was a preset entry
+  const isPresetEntry = e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset';
+  let entryMode = isPresetEntry ? 'preset' : 'standard'; // 'standard' | 'preset'
+  let selectedPresetIdx = isPresetEntry ? presets.findIndex(p=>p.name===e.title) : -1;
+
+  const {ov,mo}=makeOverlay(`
+    <div class="modal-hdr">
+      <span style="font-weight:600;font-size:13px">${entry?'Edit Entry':'New Entry'} — ${esc(client.name)}</span>
+      <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <div><label>Date</label><input type="date" id="e-date" value="${e.date||today()}"></div>
+
+        ${presets.length>0?`
+        <div>
+          <label>Billing Method</label>
+          <div class="mode-toggle">
+            <button class="mode-btn${entryMode==='standard'?' active':''}" id="mode-standard">Standard</button>
+            <button class="mode-btn${entryMode==='preset'?' active':''}" id="mode-preset">Package / Preset</button>
+          </div>
+        </div>`:''}
+
+        <div id="entry-form-body"></div>
+
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+          <span style="color:var(--text3);font-size:11px">TOTAL</span>
+          <span class="amber mono-num" style="font-weight:600;font-size:16px" id="e-preview">$0.00</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" id="m-cancel">Cancel</button>
+      <button class="btn btn-primary" id="m-save">Save Entry</button>
+    </div>`);
+
+  mo.querySelector('#m-close').onclick=mo.querySelector('#m-cancel').onclick=()=>ov.remove();
+
+  function updatePreview() {
+    if(entryMode==='preset') {
+      const idx=selectedPresetIdx;
+      if(idx>=0&&presets[idx]) {
+        const override=mo.querySelector('#e-override')?.value;
+        mo.querySelector('#e-preview').textContent=$m(override||presets[idx].price);
+      } else {
+        mo.querySelector('#e-preview').textContent='$0.00';
+      }
+      return;
+    }
+    const type=mo.querySelector('#e-type')?.value||'shoot';
+    const billing_mode=mo.querySelector('#e-billing-mode')?.value||'hourly';
+    const hours=mo.querySelector('#e-hours')?.value||0;
+    const mins=mo.querySelector('#e-mins')?.value||0;
+    const cat=mo.querySelector('#e-cat')?.value||'basic';
+    const override=mo.querySelector('#e-rate')?.value||null;
+    const tot=computeTotal({type,billing_mode,hours,duration_minutes:mins,category:cat,rate_override:override||null},client);
+    mo.querySelector('#e-preview').textContent=$m(tot);
+  }
+
+  function renderPresetForm() {
+    const body=mo.querySelector('#entry-form-body');
+    body.innerHTML=`
+      <div>
+        <label>Select Package</label>
+        <div class="preset-pick" id="preset-pick">
+          ${presets.map((p,i)=>{
+            const dt=p.display_type||'package';
+            const bmap={shoot:'badge-shoot',edit:'badge-edit',graphic_design:'badge-gfx',render:'badge-render',package:'badge-preset'};
+            const blbl={shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER',package:'PKG'};
+            return `<div class="preset-opt${selectedPresetIdx===i?' selected':''}" data-pi="${i}">
+              <span style="display:flex;align-items:center;gap:6px"><span class="badge ${bmap[dt]||'badge-preset'}">${blbl[dt]||'PKG'}</span>${esc(p.name)}</span>
+              <span class="amber mono-num" style="font-weight:600">${$m(p.price)}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div><label>Title Override (optional)</label><input id="e-title-preset" value="${isPresetEntry?esc(e.title):''}" placeholder="Leave blank to use package name"></div>
+      <div><label>Price Override (optional)</label><input type="number" step="0.01" min="0" id="e-override" value="${isPresetEntry&&e.rate_override?e.rate_override:''}" placeholder="Leave blank to use package price"></div>`;
+
+    body.querySelectorAll('.preset-opt').forEach(opt=>{
+      opt.onclick=()=>{
+        selectedPresetIdx=Number(opt.dataset.pi);
+        body.querySelectorAll('.preset-opt').forEach(o=>o.classList.remove('selected'));
+        opt.classList.add('selected');
+        // Auto-fill title if blank
+        const titleEl=mo.querySelector('#e-title-preset');
+        if(!titleEl.value) titleEl.value=presets[selectedPresetIdx].name;
+        updatePreview();
+      };
+    });
+    mo.querySelector('#e-override').oninput=updatePreview;
+    updatePreview();
+  }
+
+  function renderStandardForm() {
+    const body=mo.querySelector('#entry-form-body');
+    body.innerHTML=`
+      <div class="fr c2">
+        <div><label>Type</label>
+          <select id="e-type">
+            <option value="shoot"${(e.type||'shoot')==='shoot'?' selected':''}>Shoot</option>
+            <option value="edit"${e.type==='edit'?' selected':''}>Edit</option>
+            <option value="graphic_design"${e.type==='graphic_design'?' selected':''}>Graphic Design</option>
+            <option value="render"${e.type==='render'?' selected':''}>Render</option>
+          </select>
+        </div>
+        <div></div>
+      </div>
+      <div><label>Title / Description</label><input id="e-title" value="${esc(!isPresetEntry?e.title||'':'')}" placeholder="e.g. Campaign shoot day 1"></div>
+      <div id="e-type-fields"></div>
+      <div><label>Rate Override (optional)</label><input type="number" step="0.01" min="0" id="e-rate" value="${!isPresetEntry&&e.rate_override?e.rate_override:''}" placeholder="Default rate"></div>`;
+
+    function updateTypeFields() {
+      const type=mo.querySelector('#e-type').value;
+      const tf=mo.querySelector('#e-type-fields');
+      if(type==='shoot') {
+        tf.innerHTML=`<div class="fr c2">
+          <div><label>Billing Mode</label>
+            <select id="e-billing-mode">
+              <option value="hourly"${(e.billing_mode||'hourly')==='hourly'?' selected':''}>Hourly</option>
+              <option value="day_rate"${e.billing_mode==='day_rate'?' selected':''}>Day Rate</option>
+            </select>
+          </div>
+          <div id="e-hours-wrap"><label>Hours</label><input type="number" step="0.5" min="0" id="e-hours" value="${!isPresetEntry?e.hours||'':''}" placeholder="8"></div>
+        </div>`;
+        mo.querySelector('#e-billing-mode').onchange=()=>{
+          const dm=mo.querySelector('#e-billing-mode').value;
+          mo.querySelector('#e-hours-wrap').style.display=dm==='day_rate'?'none':'block';
+          mo.querySelector('#e-rate').placeholder=`Default: ${$m(getDefaultRate(type,dm))}`;
+          updatePreview();
+        };
+        if(e.billing_mode==='day_rate') mo.querySelector('#e-hours-wrap').style.display='none';
+        mo.querySelector('#e-rate').placeholder=`Default: ${$m(getDefaultRate(type,e.billing_mode||'hourly'))}`;
+      } else if(type==='edit') {
+        tf.innerHTML=`<div class="fr c2">
+          <div><label>Duration (minutes)</label><input type="number" min="0" step="1" id="e-mins" value="${!isPresetEntry?e.duration_minutes||'':''}" placeholder="120"></div>
+          <div><label>Category</label>
+            <select id="e-cat">
+              ${Object.entries(EDIT_CATS).map(([k,v])=>`<option value="${k}"${(e.category||'basic')===k?' selected':''}>${v.label} (×${v.mult})</option>`).join('')}
+            </select>
+          </div>
+        </div>`;
+        mo.querySelector('#e-rate').placeholder=`Default: ${$m(getDefaultRate(type))}`;
+      } else {
+        tf.innerHTML=`<div class="fr c2">
+          <div><label>Hours</label><input type="number" step="0.5" min="0" id="e-hours" value="${!isPresetEntry?e.hours||'':''}" placeholder="4"></div>
+          <div></div>
+        </div>`;
+        mo.querySelector('#e-rate').placeholder=`Default: ${$m(getDefaultRate(type))}`;
+      }
+      tf.querySelectorAll('input,select').forEach(i=>{ i.oninput=i.onchange=updatePreview; });
+      mo.querySelector('#e-rate').oninput=updatePreview;
+      updatePreview();
+    }
+
+    mo.querySelector('#e-type').onchange=updateTypeFields;
+    mo.querySelector('#e-title').oninput=()=>{};
+    updateTypeFields();
+    // focus title
+    setTimeout(()=>{ mo.querySelector('#e-title')?.focus(); },50);
+  }
+
+  function setMode(m) {
+    entryMode=m;
+    mo.querySelector('#mode-standard')?.classList.toggle('active',m==='standard');
+    mo.querySelector('#mode-preset')?.classList.toggle('active',m==='preset');
+    if(m==='preset') renderPresetForm(); else renderStandardForm();
+  }
+
+  if(presets.length>0) {
+    mo.querySelector('#mode-standard').onclick=()=>setMode('standard');
+    mo.querySelector('#mode-preset').onclick=()=>setMode('preset');
+  }
+
+  // Initial render
+  if(entryMode==='preset') renderPresetForm(); else renderStandardForm();
+
+  mo.querySelector('#m-save').onclick=async()=>{
+    const date=mo.querySelector('#e-date').value;
+    if(!date) return;
+    const btn=mo.querySelector('#m-save');
+    btn.disabled=true; btn.textContent='Saving…';
+
+    let payload;
+    if(entryMode==='preset') {
+      if(selectedPresetIdx<0||!presets[selectedPresetIdx]){ btn.disabled=false; btn.textContent='Save Entry'; return; }
+      const preset=presets[selectedPresetIdx];
+      const titleOverride=mo.querySelector('#e-title-preset')?.value.trim();
+      const priceOverride=mo.querySelector('#e-override')?.value;
+      const finalPrice=priceOverride?Number(priceOverride):Number(preset.price);
+      payload={
+        type:'package',
+        billing_mode:'flat_fee',
+        title:titleOverride||preset.name,
+        date,
+        hours:null,
+        duration_minutes:null,
+        category: preset.display_type||'package',  // store display_type in category field for rendering
+        rate_override:priceOverride?Number(priceOverride):null,
+        computed_total:finalPrice,
+      };
+    } else {
+      const type=mo.querySelector('#e-type').value;
+      const title=mo.querySelector('#e-title')?.value.trim();
+      if(!title){ btn.disabled=false; btn.textContent='Save Entry'; return; }
+      const billing_mode=mo.querySelector('#e-billing-mode')?.value||'hourly';
+      const hours=mo.querySelector('#e-hours')?.value||null;
+      const mins=mo.querySelector('#e-mins')?.value||null;
+      const cat=mo.querySelector('#e-cat')?.value||'basic';
+      const rate_override=mo.querySelector('#e-rate')?.value||null;
+      const computed=computeTotal({type,billing_mode,hours,duration_minutes:mins,category:cat,rate_override:rate_override||null},client);
+      payload={
+        type,title,date,billing_mode:type==='shoot'?billing_mode:null,
+        hours:hours!==null?Number(hours):null,
+        duration_minutes:mins!==null?Number(mins):null,
+        category:cat||null,
+        rate_override:rate_override?Number(rate_override):null,
+        computed_total:computed,
+      };
+    }
+
+    if(entry) {
+      const {error} = await sb.from('entries').update(payload).eq('id',entry.id);
+      if(error){ alert('Save failed: '+error.message); btn.disabled=false; btn.textContent='Save Entry'; return; }
+    } else {
+      const {error} = await sb.from('entries').insert({...payload,client_id:client.id,user_id:STATE.user.id,invoiced:false,invoice_id:null});
+      if(error){ alert('Save failed: '+error.message); btn.disabled=false; btn.textContent='Save Entry'; return; }
+    }
+    ov.remove(); fetchAll();
+  };
+}
+
+// ── Invoice helpers ───────────────────────────────────────────
+const GROUP_ORDER = ['shoot','edit','graphic_design','render','package'];
+const GROUP_LABELS = {shoot:'Shoots',edit:'Edits',graphic_design:'Graphic Design',render:'3D Renders',package:'Package / Flat Fee'};
+
+function entryGroup(e) {
+  if(e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset') {
+    // category holds the display_type for packages; use it for grouping
+    const dt = e.category;
+    if(dt&&dt!=='package'&&['shoot','edit','graphic_design','render'].includes(dt)) return dt;
+    return 'package';
+  }
+  return e.type;
+}
+
+function billingDetail(e) {
+  if(e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset') return 'package fee';
+  if(e.billing_mode==='day_rate')  return 'day rate';
+  if(e.type==='edit')              return `${e.duration_minutes} min edit`;
+  if(e.hours)                      return `${e.hours} hr${Number(e.hours)!==1?'s':''}`;
+  return '';
+}
+
+function buildGroupedPreview(selected) {
+  if(!selected.length) return '';
+  const groups = {};
+  GROUP_ORDER.forEach(g=>{ groups[g]=[]; });
+  selected.forEach(e=>{ const g=entryGroup(e); if(!groups[g]) groups[g]=[]; groups[g].push(e); });
+  // sort each group chronologically
+  Object.values(groups).forEach(arr=>arr.sort((a,b)=>a.date.localeCompare(b.date)));
+
+  const grandTotal = selected.reduce((s,e)=>s+Number(e.computed_total||0),0);
+
+  let html = '<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">';
+
+  GROUP_ORDER.forEach(grp=>{
+    const ents = groups[grp];
+    if(!ents.length) return;
+    const subtotal = ents.reduce((s,e)=>s+Number(e.computed_total||0),0);
+    html += `<div style="border-bottom:1px solid var(--border)">
+      <div style="padding:6px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);background:var(--bg2)">${GROUP_LABELS[grp]}</div>
+      ${ents.map(e=>`
+        <div style="display:grid;grid-template-columns:60px 1fr 90px 80px;gap:8px;padding:6px 12px;font-size:11px;border-top:1px solid var(--border);align-items:center">
+          <span style="color:var(--text3)">${$d(e.date)}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.title)}</span>
+          <span style="color:var(--text3)">${billingDetail(e)}</span>
+          <span class="mono-num" style="text-align:right;font-weight:500">${$m(e.computed_total)}</span>
+        </div>`).join('')}
+      <div style="display:flex;justify-content:space-between;padding:5px 12px 7px;font-size:11px;color:var(--text2)">
+        <span>Subtotal</span><span class="mono-num">${$m(subtotal)}</span>
+      </div>
+    </div>`;
+  });
+
+  html += `<div class="total-row total-grand" style="padding:10px 12px"><span>Invoice Total</span><span class="mono-num">${$m(grandTotal)}</span></div></div>`;
+  return html;
+}
+
+// ── Build Invoice Modal ───────────────────────────────────────
+function openBuildInvoiceModal(client, uninvoiced) {
+  const sel=new Set(uninvoiced.map(e=>e.id));
+
+  function badgeFor(e) {
+    if(e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset') {
+      const dt=e.category||'package';
+      const map={shoot:'badge-shoot',edit:'badge-edit',graphic_design:'badge-gfx',render:'badge-render',package:'badge-preset'};
+      const lbl={shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER',package:'PKG'};
+      return `<span class="badge ${map[dt]||'badge-preset'}">${lbl[dt]||'PKG'}</span>`;
+    }
+    const map={shoot:'badge-shoot',edit:'badge-edit',graphic_design:'badge-gfx',render:'badge-render'};
+    const lbl={shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER'};
+    return `<span class="badge ${map[e.type]||''}">${lbl[e.type]||e.type}</span>`;
+  }
+
+  const {ov,mo}=makeOverlay(`
+    <div class="modal-hdr">
+      <span style="font-weight:600;font-size:13px">Create Invoice — ${esc(client.name)}</span>
+      <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:8px;margin:0;text-transform:none;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="sel-all" checked> Select all (${uninvoiced.length})
+        </label>
+        <span id="sel-count" style="font-size:11px;color:var(--text3)">${uninvoiced.length} selected</span>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;max-height:220px;overflow-y:auto;margin-bottom:14px">
+        ${uninvoiced.map(e=>`
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s" class="entry-chk-row">
+            <input type="checkbox" class="entry-chk" data-id="${e.id}" checked>
+            ${badgeFor(e)}
+            <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.title)}</span>
+            <span style="font-size:11px;color:var(--text3);margin-right:10px;white-space:nowrap">${$d(e.date)}</span>
+            <span class="amber mono-num" style="font-weight:600;font-size:12px;white-space:nowrap">${$m(e.computed_total)}</span>
+          </label>`).join('')}
+      </div>
+      <div style="font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">Invoice Preview</div>
+      <div id="inv-preview"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" id="m-cancel">Cancel</button>
+      <button class="btn btn-primary" id="m-build">Generate Invoice Draft</button>
+    </div>`,true);
+
+  mo.querySelector('#m-close').onclick=mo.querySelector('#m-cancel').onclick=()=>ov.remove();
+
+  function updatePreview() {
+    const selected=uninvoiced.filter(e=>sel.has(e.id));
+    mo.querySelector('#sel-count').textContent=`${selected.length} selected`;
+    mo.querySelector('#sel-all').checked=selected.length===uninvoiced.length;
+    mo.querySelector('#sel-all').indeterminate=selected.length>0&&selected.length<uninvoiced.length;
+    mo.querySelector('#m-build').disabled=selected.length===0;
+    mo.querySelector('#inv-preview').innerHTML = selected.length ? buildGroupedPreview(selected) : '<div style="font-size:11px;color:var(--text3)">No entries selected</div>';
+  }
+
+  mo.querySelectorAll('.entry-chk').forEach(chk=>{
+    chk.onchange=()=>{ chk.checked?sel.add(chk.dataset.id):sel.delete(chk.dataset.id); updatePreview(); };
+  });
+  mo.querySelector('#sel-all').onchange=ev=>{
+    if(ev.target.checked) uninvoiced.forEach(en=>sel.add(en.id)); else sel.clear();
+    mo.querySelectorAll('.entry-chk').forEach(c=>{ c.checked=sel.has(c.dataset.id); });
+    updatePreview();
+  };
+  updatePreview();
+
+  mo.querySelector('#m-build').onclick=async()=>{
+    const ids=Array.from(sel);
+    const selEnts=uninvoiced.filter(e=>ids.includes(e.id));
+    const total=selEnts.reduce((s,e)=>s+Number(e.computed_total||0),0);
+    const btn=mo.querySelector('#m-build');
+    btn.disabled=true; btn.textContent='Creating…';
+    const {data:inv,error}=await sb.from('invoices').insert({
+      client_id:client.id,user_id:STATE.user.id,
+      entry_ids:ids,status:'draft',total_amount:total,
+    }).select().single();
+    if(error){ alert('Error: '+error.message); btn.disabled=false; btn.textContent='Generate Invoice Draft'; return; }
+    if(inv) {
+      const {error:e2}=await sb.from('entries').update({invoiced:true,invoice_id:inv.id}).in('id',ids);
+      if(e2){ alert('Warning: invoice created but entries not marked: '+e2.message); }
+    }
+    ov.remove(); fetchAll();
+  };
+}
+
+// ── Invoice Detail Modal ──────────────────────────────────────
+function openInvoiceDetail(inv) {
+  const client  =STATE.clients.find(c=>c.id===inv.client_id);
+  const invEnts =STATE.entries.filter(e=>(inv.entry_ids||[]).includes(e.id));
+  const dates=invEnts.map(e=>new Date(e.date+'T00:00:00')).filter(d=>!isNaN(d));
+  const mn=dates.length?$d(new Date(Math.min(...dates)).toISOString().slice(0,10)):'';
+  const mx=dates.length?$d(new Date(Math.max(...dates)).toISOString().slice(0,10)):'';
+  const sb_map={draft:'badge-draft',sent:'badge-sent',paid:'badge-paid'};
+
+  // Build grouped body using same helper as invoice builder
+  const groupedBody = buildGroupedPreview(invEnts);
+
+  const {ov,mo}=makeOverlay(`
+    <div class="modal-hdr">
+      <div>
+        <div style="font-weight:600;font-size:13px">Invoice #${inv.id.slice(0,8).toUpperCase()}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(client?.name||'')} · ${mn}${mx!==mn?` – ${mx}`:''}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge ${sb_map[inv.status]||''}">${inv.status}</span>
+        <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      ${groupedBody}
+      <div style="height:14px"></div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1"><label>Stripe Invoice ID</label><input id="stripe-id" value="${esc(inv.stripe_invoice_id||'')}" placeholder="in_xxxxxxxxxxxxxxxx"></div>
+        <button class="btn btn-ghost btn-sm" id="stripe-save" style="margin-bottom:1px">Save</button>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      ${inv.status==='draft'?'<button class="btn btn-primary" id="mark-sent">Mark as Sent</button>':''}
+      ${inv.status==='sent' ?'<button class="btn btn-green"   id="mark-paid">Mark as Paid ✓</button>':''}
+      ${inv.status==='paid' ?'<span style="font-size:12px;color:var(--green2)">✓ Paid</span>':''}
+    </div>`,true);
+
+  mo.querySelector('#m-close').onclick=()=>ov.remove();
+  mo.querySelector('#stripe-save').onclick=async()=>{
+    const sid=mo.querySelector('#stripe-id').value.trim();
+    await sb.from('invoices').update({stripe_invoice_id:sid}).eq('id',inv.id); fetchAll();
+  };
+  if(mo.querySelector('#mark-sent')) mo.querySelector('#mark-sent').onclick=async()=>{
+    await sb.from('invoices').update({status:'sent'}).eq('id',inv.id); ov.remove(); fetchAll();
+  };
+  if(mo.querySelector('#mark-paid')) mo.querySelector('#mark-paid').onclick=async()=>{
+    await sb.from('invoices').update({status:'paid'}).eq('id',inv.id); ov.remove(); fetchAll();
+  };
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+(async()=>{
+  // Guard: if Supabase failed to load from CDN
+  if(typeof supabase==='undefined') {
+    document.getElementById('app').innerHTML='<div class="loading-screen" style="flex-direction:column;gap:12px"><span style="color:var(--red)">⚠ Failed to load Supabase library.</span><span style="font-size:11px;color:var(--text3)">Check your internet connection and reload.</span></div>';
+    return;
+  }
+
+  try {
+    // Single source of truth: getSession on load
+    const {data,error} = await sb.auth.getSession();
+    if(error) throw error;
+    STATE.user = data?.session?.user || null;
+    STATE.loading = false;
+    if(STATE.user) await fetchAll(); else render();
+  } catch(err) {
+    document.getElementById('app').innerHTML=`<div class="loading-screen" style="flex-direction:column;gap:12px"><span style="color:var(--red)">⚠ ${err.message||'Connection error'}</span><span style="font-size:11px;color:var(--text3)">Check Supabase URL and key, then reload.</span></div>`;
+    return;
+  }
+
+  // Listen for login/logout after initial load
+  sb.auth.onAuthStateChange(async(_event,session)=>{
+    const newUser = session?.user||null;
+    const wasLoggedIn = !!STATE.user;
+    STATE.user = newUser;
+    if(newUser && !wasLoggedIn) { await fetchAll(); }
+    else if(!newUser) { STATE.clients=[]; STATE.entries=[]; STATE.invoices=[]; render(); }
+  });
+})();
+</script>
+</body>
+</html>
