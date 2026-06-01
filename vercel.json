@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/((?!api/).*)", "destination": "/ledger.html" }
+  ],
+  "functions": {
+    "api/stripe.js": {
+      "memory": 256,
+      "maxDuration": 15
+    }
+  }
+}

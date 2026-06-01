@@ -1,0 +1,105 @@
+# Invoice Log — Stripe Integration Setup
+# Follow these steps in order. Takes about 10 minutes.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1 — Supabase: add email column
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Go to: Supabase Dashboard → SQL Editor → New Query
+Paste and run:
+
+  ALTER TABLE clients ADD COLUMN IF NOT EXISTS email text;
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2 — GitHub: update your repo
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Replace / add these files in your GitHub repo:
+
+  ledger.html        ← replace existing file
+  api/stripe.js      ← new file (create the api/ folder)
+  vercel.json        ← replace existing file
+
+Your repo should look like:
+
+  your-repo/
+    ledger.html
+    icon.png
+    vercel.json
+    api/
+      stripe.js
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 3 — Vercel: add your Stripe secret key
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Go to: Vercel Dashboard → your project → Settings → Environment Variables
+
+Add:
+  Name:   STRIPE_SECRET_KEY
+  Value:  sk_live_...   (your Stripe secret key)
+           OR
+           sk_test_...  (recommended to test first)
+
+  Environments: check Production, Preview, Development
+
+Click Save.
+
+Then: Vercel Dashboard → your project → Deployments → Redeploy
+(The new env var won't take effect until you redeploy)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 4 — Add email to your clients
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+In Invoice Log:
+  Settings → Edit each client → fill in Email field → Save
+
+The email must match the client's email in Stripe so it finds
+their existing customer record instead of creating a duplicate.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 5 — Test with a Stripe test key first
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Use sk_test_... key in Vercel (from step 3)
+2. Open an invoice in Invoice Log
+3. Click "Send to Stripe"
+4. Check Stripe Dashboard → Invoices (make sure you're in
+   Test mode — toggle in top-left of Stripe dashboard)
+5. Verify the invoice looks right, line items are correct
+6. When happy, swap sk_test_... for sk_live_... in Vercel
+   and redeploy
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HOW IT WORKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When you click "Send to Stripe" on an invoice:
+
+1. Looks up client by email in Stripe (finds existing customer)
+   If not found, creates a new Stripe customer
+2. Creates invoice line items in Stripe (one per entry)
+3. Adds Stripe fee recovery line item (if enabled)
+4. Creates a DRAFT invoice in Stripe — not sent to client yet
+5. Saves the Stripe invoice ID back to Invoice Log
+
+After that, the invoice detail shows:
+  ↗ Open in Stripe    — goes straight to Stripe dashboard
+  ⎘ Copy Link         — copies the client-facing payment URL
+  ↻ Sync Status       — pulls current status from Stripe
+                        (auto-marks paid in Invoice Log if Stripe shows paid)
+
+The invoice stays as a draft in Stripe until YOU manually
+send it from the Stripe dashboard — Invoice Log never sends
+it automatically.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FINDING YOUR STRIPE SECRET KEY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Stripe Dashboard → Developers → API keys → Secret key
+(Click "Reveal" to see it)
+
+Keep this key private — it's only in Vercel's env vars,
+never in any file in your repo.
