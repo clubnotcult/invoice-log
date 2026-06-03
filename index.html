@@ -1,0 +1,2021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e0e0e">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+<meta name="apple-mobile-web-app-title" content="Invoice Log">
+<title>Invoice Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  /* Surfaces */
+  --bg:#0e0e0e;--bg2:#161616;--bg3:#1e1e1e;--bg4:#262626;
+  --border:#2a2a2a;--border2:#383838;
+  /* Text */
+  --text:#e8e4d9;--text2:#8a8478;--text3:#5a5650;
+  /* Brand / functional accent — actions, nav, selections */
+  --accent:#3A7D5A;--accent2:#4e9e72;--accent3:#1f4a34;
+  --accent-bg:rgba(58,125,90,.1);--accent-border:rgba(58,125,90,.3);
+  /* Financial / Stripe accent — payment states only */
+  --fin:#2E5BA8;--fin2:#4a78c8;--fin3:#1a3560;
+  --fin-bg:rgba(46,91,168,.12);--fin-border:rgba(46,91,168,.3);
+  /* Legacy aliases (keep JS working) */
+  --amber:#d4a843;--amber2:#f0c060;--amber3:#8a6820;
+  --green:#3A7D5A;--green2:#4e9e72;
+  --blue2:#4a78c8;
+  /* Status */
+  --red:#c04848;
+  --mono:'IBM Plex Mono',monospace;--r:3px;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:var(--mono);cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:var(--mono);background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:var(--r);padding:7px 10px;font-size:12px;outline:none;width:100%;-webkit-appearance:none;appearance:none}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-bg)}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235a5650' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+select option{background:var(--bg3)}
+label{font-size:11px;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:4px}
+input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--accent);flex-shrink:0}
+
+/* ── Layout ── */
+#app{display:flex;height:100vh;overflow:hidden}
+
+/* ── Sidebar (desktop) ── */
+.sidebar{width:196px;min-width:196px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;transition:transform .2s}
+.sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.wordmark{font-size:13px;font-weight:600;letter-spacing:.14em;color:var(--accent2)}
+.wordmark-sub{font-size:10px;color:var(--text3);letter-spacing:.1em;margin-top:2px}
+.nav-section{padding:12px 16px 4px;font-size:9px;color:var(--text3);letter-spacing:.15em;text-transform:uppercase}
+.nav-item{padding:9px 16px;font-size:12px;cursor:pointer;color:var(--text2);border-left:2px solid transparent;transition:all .1s;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+.nav-item:hover{color:var(--text);background:var(--bg3)}
+.nav-item.active{color:var(--accent2);border-left-color:var(--accent);background:var(--accent-bg)}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:var(--accent3);flex-shrink:0}
+.sidebar-footer{margin-top:auto;border-top:1px solid var(--border);padding:12px 16px}
+
+/* ── Main ── */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
+.topbar{padding:13px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg);position:sticky;top:0;z-index:10;flex-shrink:0;gap:12px}
+.topbar-left{min-width:0}
+.topbar-title{font-size:14px;font-weight:600;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.topbar-actions{display:flex;gap:8px;flex-shrink:0;align-items:center}
+.content{padding:18px 22px;flex:1}
+
+/* ── Hamburger (mobile only) ── */
+.hamburger{display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--text2);font-size:20px;line-height:1}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:90}
+.mob-overlay.open{display:block}
+
+/* ── Bottom nav (mobile only) ── */
+.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);z-index:80;padding-bottom:env(safe-area-inset-bottom)}
+.bottom-nav-inner{display:flex;justify-content:space-around;padding:6px 0}
+.bnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 12px;cursor:pointer;color:var(--text3);font-size:10px;letter-spacing:.06em;text-transform:uppercase;transition:color .1s;border:none;background:none;font-family:var(--mono)}
+.bnav-item .bnav-icon{font-size:18px;line-height:1}
+.bnav-item.active{color:var(--accent2)}
+.bnav-item:hover{color:var(--text2)}
+
+/* ── Buttons ── */
+.btn{padding:6px 13px;border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer;transition:all .1s;letter-spacing:.04em;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent)}
+.btn-primary:not(:disabled):hover{background:var(--accent2)}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{color:var(--text);background:var(--bg3)}
+.btn-danger{background:transparent;color:var(--red);border:1px solid transparent}
+.btn-danger:hover{border-color:var(--red);background:rgba(192,72,72,.08)}
+.btn-fin{background:var(--fin);color:#fff;border:1px solid var(--fin)}
+.btn-fin:not(:disabled):hover{background:var(--fin2)}
+.btn-sm{padding:4px 9px;font-size:11px}
+
+/* ── Stats ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
+.stat{background:var(--bg2);border:1px solid var(--border);padding:13px;border-radius:var(--r)}
+.stat-label{font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+.stat-val{font-size:20px;font-weight:600;color:var(--amber)}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:15px}
+
+/* ── Client rows ── */
+.client-row{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:7px;cursor:pointer;transition:all .1s;background:var(--bg2)}
+.client-row:hover{border-color:var(--border2);background:var(--bg3)}
+
+/* ── Entry rows ── */
+.entry-table{border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.entry-row{display:grid;grid-template-columns:14px 1fr 80px 90px 58px 28px;align-items:center;gap:8px;padding:8px 11px;border-bottom:1px solid var(--border);font-size:12px;transition:background .1s}
+.entry-row:last-child{border-bottom:none}
+.entry-row:hover{background:var(--bg3)}
+.section-hdr{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);padding:7px 11px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+
+/* ── Badges ── */
+.badge{font-size:9px;padding:2px 5px;border-radius:2px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;white-space:nowrap}
+.badge-shoot{background:rgba(58,125,90,.2);color:var(--accent2)}
+.badge-edit{background:rgba(46,91,168,.2);color:var(--fin2)}
+.badge-gfx{background:rgba(180,80,180,.2);color:#c880c8}
+.badge-render{background:rgba(180,120,40,.2);color:#d4904a}
+.badge-preset{background:rgba(212,168,67,.15);color:var(--amber)}
+/* Invoice status — financial context = blue */
+.badge-draft{background:rgba(90,86,80,.2);color:var(--text2)}
+.badge-sent{background:var(--fin-bg);color:var(--fin2)}
+.badge-paid{background:var(--fin-bg);color:var(--fin2);font-weight:700}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot-on{background:var(--accent)}
+.dot-off{background:var(--text3)}
+
+/* ── Tabs ── */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:14px}
+.tab{padding:7px 14px;font-size:12px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .1s}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--accent2);border-bottom-color:var(--accent)}
+
+/* ── Modals ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);width:100%;max-width:540px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column}
+.modal.wide{max-width:680px}
+.modal-hdr{padding:15px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-body{padding:18px;flex:1;overflow-y:auto}
+.modal-ftr{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+
+/* ── Forms ── */
+.fg{display:flex;flex-direction:column;gap:11px}
+.fr{display:grid;gap:11px}
+.c2{grid-template-columns:1fr 1fr}
+.c3{grid-template-columns:1fr 1fr 1fr}
+
+/* ── Invoice cards ── */
+.inv-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:9px;overflow:hidden}
+.inv-hdr{padding:11px 15px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .1s}
+.inv-hdr:hover{background:var(--bg3)}
+
+/* ── Misc ── */
+.divider{height:1px;background:var(--border);margin:14px 0}
+.chip{display:inline-flex;padding:2px 7px;border-radius:2px;font-size:10px;background:var(--bg4);border:1px solid var(--border);color:var(--text2);margin:2px}
+.total-row{display:flex;justify-content:space-between;padding:7px 11px;font-size:13px}
+.total-grand{border-top:1px solid var(--border2);font-weight:600;color:var(--amber);font-size:14px}
+.empty{padding:44px 20px;text-align:center;color:var(--text3);font-size:12px;border:1px dashed var(--border);border-radius:var(--r)}
+.kbd{background:var(--bg4);border:1px solid var(--border2);border-radius:2px;padding:1px 5px;font-size:10px;color:var(--text3)}
+.mono-num{font-variant-numeric:tabular-nums}
+.amber{color:var(--amber)}
+.muted{color:var(--text3)}
+.accent{color:var(--accent2)}
+.fin-color{color:var(--fin2)}
+.err{background:rgba(192,72,72,.1);border:1px solid rgba(192,72,72,.3);color:#e06060;padding:9px 13px;border-radius:var(--r);font-size:12px;margin-bottom:11px}
+.ok{background:var(--accent-bg);border:1px solid var(--accent-border);color:var(--accent2);padding:9px 13px;border-radius:var(--r);font-size:12px;margin-bottom:11px}
+.loading-screen{display:flex;align-items:center;justify-content:center;height:100vh;color:var(--text3);font-size:12px;letter-spacing:.1em}
+
+/* ── Auth ── */
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px}
+.auth-box{width:100%;max-width:360px;margin:0 auto}
+
+/* ── Preset rows ── */
+.preset-row{display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid var(--border);font-size:12px}
+.preset-row:last-child{border-bottom:none}
+
+/* ── Billing mode toggle ── */
+.mode-toggle{display:flex;gap:6px;margin-bottom:2px}
+.mode-btn{padding:5px 12px;border-radius:var(--r);font-size:11px;cursor:pointer;transition:all .1s;border:1px solid var(--border2);color:var(--text3);background:transparent;font-family:var(--mono)}
+.mode-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── Preset picker ── */
+.preset-pick{display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);padding:6px}
+.preset-opt{padding:7px 10px;border-radius:2px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:12px;transition:background .1s}
+.preset-opt:hover{background:var(--bg3)}
+.preset-opt.selected{background:var(--accent-bg);border:1px solid var(--accent-border)}
+
+/* ── Stripe fee toggle pill ── */
+.stripe-toggle-wrap{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.stripe-toggle-wrap input[type=checkbox]{display:none}
+.stripe-pill{width:34px;height:18px;border-radius:9px;background:var(--bg4);border:1px solid var(--border2);position:relative;transition:background .15s,border-color .15s;flex-shrink:0}
+.stripe-pill::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--text3);transition:transform .15s,background .15s}
+.stripe-toggle-wrap.on .stripe-pill{background:var(--fin-bg);border-color:var(--fin)}
+.stripe-toggle-wrap.on .stripe-pill::after{transform:translateX(16px);background:var(--fin2)}
+.stripe-toggle-wrap.on .stripe-toggle-label{color:var(--fin2)}
+.stripe-toggle-label{font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;transition:color .15s}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px}
+
+/* ── Entry detail bottom sheet ── */
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:250;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg2);border-top:1px solid var(--border2);border-radius:8px 8px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)}
+.sheet-handle{display:flex;justify-content:center;padding:10px 0 6px}
+.sheet-handle-bar{width:36px;height:3px;border-radius:2px;background:var(--border2)}
+.sheet-hdr{padding:4px 18px 14px;border-bottom:1px solid var(--border)}
+.sheet-title{font-size:15px;font-weight:600;letter-spacing:.03em;margin-bottom:2px}
+.sheet-sub{font-size:11px;color:var(--text3)}
+.sheet-amount{font-size:26px;font-weight:600;color:var(--amber);font-variant-numeric:tabular-nums;letter-spacing:-.01em;margin:14px 18px 4px}
+.sheet-amount-label{font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin:0 18px 14px}
+.sheet-info{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;padding:14px 18px;border-top:1px solid var(--border)}
+.sheet-info-cell{}
+.sheet-info-label{font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:3px}
+.sheet-info-val{font-size:12px;color:var(--text)}
+.sheet-actions{padding:14px 18px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
+.sheet-action-row{display:flex;gap:8px}
+
+/* Tappable list rows — no inline action buttons */
+.entry-row-tap{cursor:pointer;-webkit-tap-highlight-color:rgba(255,255,255,.04);transition:background .1s}
+.entry-row-tap:hover{background:var(--bg3)}
+.entry-row-tap:active{background:var(--bg4)}
+
+/* ══ MOBILE ══════════════════════════════════════════════════ */
+@media(max-width:640px){
+  /* Hide desktop sidebar, show mobile controls */
+  .sidebar{position:fixed;top:0;left:0;bottom:0;z-index:100;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .hamburger{display:flex}
+  .bottom-nav{display:block}
+
+  /* Shrink topbar, add padding for bottom nav */
+  .topbar{padding:10px 14px}
+  /* Main scrollable area needs the padding — not #app which has overflow:hidden */
+  #app{padding-bottom:0}
+  .main{padding-bottom:72px}
+
+  /* Content */
+  .content{padding:12px 14px}
+
+  /* Entry row — collapse date/edit cols */
+  .entry-row{grid-template-columns:12px 1fr 70px 26px}
+  .entry-date-col,.entry-edit-col{display:none}
+
+  /* Forms stack */
+  .c2,.c3{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:1fr 1fr}
+
+  /* Modals full-width */
+  .overlay{padding:8px}
+  .modal,.modal.wide{max-width:100%;max-height:96vh}
+  .modal-body{padding:14px}
+}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading-screen">loading…</div></div>
+<script>
+const SUPABASE_URL = 'https://imhgracudccwhulfqggn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_OAwlQmcjdTi8MsuyVyL6bA_WuWXmWi5';
+
+let sb;
+try {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) {
+  document.getElementById('app').innerHTML='<div class="loading-screen" style="flex-direction:column;gap:12px"><span style="color:#e06060">⚠ Supabase failed to initialise.</span><span style="font-size:11px;color:#5a5650">'+e.message+'</span></div>';
+}
+
+// ── Billing ───────────────────────────────────────────────────
+const EDIT_CATS = {
+  basic:    {label:'Basic',    mult:1},
+  standard: {label:'Standard', mult:1.5},
+  heavy:    {label:'Heavy',    mult:2.2},
+  complex:  {label:'Complex',  mult:3},
+};
+function computeTotal(e, client) {
+  const r = client?.default_rates || {};
+  const n = v => Number(v||0);
+  if (e.billing_mode === 'preset') return n(e.rate_override || e.computed_total);
+  if (e.type==='shoot') {
+    if (e.billing_mode==='day_rate') return n(e.rate_override??r.shoot_day_rate);
+    return n(e.rate_override??r.shoot_hourly_rate) * n(e.hours);
+  }
+  if (e.type==='edit') return n(e.rate_override??r.edit_rate_per_minute) * n(e.duration_minutes) * (EDIT_CATS[e.category]?.mult||1);
+  if (e.type==='graphic_design') return n(e.rate_override??r.graphic_design_hourly_rate) * n(e.hours);
+  if (e.type==='render')         return n(e.rate_override??r.render_hourly_rate) * n(e.hours);
+  return 0;
+}
+const $m = n => '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const $d = d => { if(!d)return''; const dt=new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}); };
+const today = () => new Date().toISOString().slice(0,10);
+
+// Due date display — MM/DD format for production tracking
+function fmtDue(due_date) {
+  if (!due_date) return null;
+  const [,mm,dd] = due_date.split('-');
+  return `${mm}/${dd}`;
+}
+
+// ── Due date priority helpers ─────────────────────────────────
+function duePriority(due_date) {
+  // Returns: 'overdue' | 'today' | 'soon' | 'upcoming' | null
+  if (!due_date) return null;
+  const now  = new Date(); now.setHours(0,0,0,0);
+  const due  = new Date(due_date + 'T00:00:00');
+  const diff = Math.round((due - now) / 86400000); // days
+  if (diff < 0)  return 'overdue';
+  if (diff === 0) return 'today';
+  if (diff <= 3)  return 'soon';
+  return 'upcoming';
+}
+function dueBadge(due_date) {
+  const p = duePriority(due_date);
+  if (!p) return '';
+  const cfg = {
+    overdue:  { label:'OVERDUE',  color:'#c04848', bg:'rgba(192,72,72,.15)',  border:'rgba(192,72,72,.4)' },
+    today:    { label:'DUE TODAY',color:'#d4843a', bg:'rgba(212,132,58,.15)', border:'rgba(212,132,58,.4)' },
+    soon:     { label:'DUE SOON', color:'#8a8478', bg:'rgba(138,132,120,.1)', border:'rgba(138,132,120,.3)' },
+    upcoming: { label: null, color:'', bg:'', border:'' },
+  };
+  const s = cfg[p];
+  if (!s.label) return `<span style="font-size:10px;color:var(--text3)">${$d(due_date)}</span>`;
+  return `<span style="font-size:9px;padding:1px 5px;border-radius:2px;font-weight:600;letter-spacing:.07em;background:${s.bg};border:1px solid ${s.border};color:${s.color}">${s.label}</span>`;
+}
+function sortByDue(entries) {
+  // Sort: overdue (oldest first) → due today → upcoming (nearest first) → no due date
+  const rank = e => {
+    const p = duePriority(e.due_date);
+    if (p === 'overdue')  return 0;
+    if (p === 'today')    return 1;
+    if (p === 'soon')     return 2;
+    if (p === 'upcoming') return 3;
+    return 4;  // no due date — always last
+  };
+  return [...entries].sort((a, b) => {
+    const ra = rank(a), rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    // Within same priority tier: sort ascending by due_date (earliest first)
+    // Entries with no due_date fall back to entry date
+    const da = a.due_date || a.date;
+    const db = b.due_date || b.date;
+    return da.localeCompare(db);
+  });
+}
+
+// ── Entry status helpers ─────────────────────────────────────
+// Derive work_status from DB field, with fallback for old records
+function workStatus(e) {
+  if (e.work_status) return e.work_status;
+  if (e.invoiced)    return 'invoiced';
+  return 'completed'; // legacy records default to completed (billable)
+}
+
+// ── Stripe fee calculator ────────────────────────────────────
+// Formula: fee = (subtotal + 0.30) / (1 - 0.029) - subtotal
+// Guarantees: subtotal + fee - stripe_deduction = subtotal exactly
+function calcStripeFee(subtotal) {
+  const fee = (subtotal + 0.30) / (1 - 0.029) - subtotal;
+  return Math.ceil(fee * 100) / 100; // round up to nearest cent (protects net)
+}
+
+// ── State ─────────────────────────────────────────────────────
+let STATE = {user:null, clients:[], entries:[], invoices:[], page:'dashboard', pageParam:null, loading:true};
+
+// ── DOM helpers ───────────────────────────────────────────────
+const $  = s => document.querySelector(s);
+const el = (tag,cls,html='') => { const e=document.createElement(tag); if(cls)e.className=cls; if(html)e.innerHTML=html; return e; };
+function render() { $('#app').innerHTML=''; buildApp(); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Data ──────────────────────────────────────────────────────
+async function fetchAll() {
+  if (!STATE.user) return;
+  const [c,e,i] = await Promise.all([
+    sb.from('clients').select('*').order('created_at'),
+    sb.from('entries').select('*').order('date',{ascending:false}),
+    sb.from('invoices').select('*').order('created_at',{ascending:false}),
+  ]);
+  STATE.clients  = c.data||[];
+  STATE.entries  = e.data||[];
+  STATE.invoices = i.data||[];
+  render();
+}
+
+// ── Router ────────────────────────────────────────────────────
+function nav(page, param=null) { STATE.page=page; STATE.pageParam=param; render(); }
+
+// ── App shell ─────────────────────────────────────────────────
+function buildApp() {
+  if (STATE.loading) { $('#app').innerHTML='<div class="loading-screen">loading…</div>'; return; }
+  if (!STATE.user)   { buildAuth(); return; }
+
+  const app = $('#app');
+  const sb_el = el('div','sidebar');
+  sb_el.innerHTML = `
+    <div class="sidebar-logo">
+      <div class="wordmark">INVOICE LOG</div>
+      <div class="wordmark-sub">for creatives</div>
+    </div>
+    <div class="nav-section">Navigation</div>
+    <div class="nav-item${STATE.page==='dashboard'||STATE.page==='client'?' active':''}" data-nav="dashboard"><span style="font-size:14px">⊞</span> Dashboard</div>
+    <div class="nav-item${STATE.page==='invoices'?' active':''}" data-nav="invoices"><span style="font-size:14px">◈</span> Invoices</div>
+    <div class="nav-item${STATE.page==='settings'?' active':''}" data-nav="settings"><span style="font-size:14px">◎</span> Settings</div>
+    <div class="nav-section">Clients</div>
+    ${STATE.clients.slice(0,12).map(c=>`
+      <div class="nav-item${STATE.page==='client'&&STATE.pageParam===c.id?' active':''}" data-nav="client" data-id="${c.id}" style="font-size:11px;padding-left:20px">
+        <span class="nav-dot"></span>${esc(c.name.length>17?c.name.slice(0,17)+'…':c.name)}
+      </div>`).join('')}
+    ${STATE.clients.length===0?'<div style="padding:6px 20px;font-size:11px;color:var(--text3)">No clients</div>':''}
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-sm" id="signout-btn" style="width:100%;justify-content:center;font-size:11px">Sign out</button>
+    </div>`;
+  app.appendChild(sb_el);
+
+  // Mobile overlay (closes sidebar when tapping outside)
+  const mobOv = el('div','mob-overlay');
+  mobOv.onclick = () => { sb_el.classList.remove('open'); mobOv.classList.remove('open'); };
+  app.appendChild(mobOv);
+
+  // Bottom nav (mobile)
+  const bnav = el('div','bottom-nav');
+  const isDash = STATE.page==='dashboard'||STATE.page==='client';
+  bnav.innerHTML = `<div class="bottom-nav-inner">
+    <button class="bnav-item${isDash?' active':''}" data-nav="dashboard"><span class="bnav-icon">⊞</span>Clients</button>
+    <button class="bnav-item${STATE.page==='invoices'?' active':''}" data-nav="invoices"><span class="bnav-icon">◈</span>Invoices</button>
+    <button class="bnav-item${STATE.page==='settings'?' active':''}" data-nav="settings"><span class="bnav-icon">◎</span>Settings</button>
+  </div>`;
+  document.body.appendChild(bnav);
+
+  const main = el('div','main');
+  app.appendChild(main);
+
+  // Sidebar nav clicks — also close drawer on mobile
+  sb_el.querySelectorAll('[data-nav]').forEach(n => {
+    n.onclick = () => {
+      nav(n.dataset.nav, n.dataset.id||null);
+      sb_el.classList.remove('open');
+      mobOv.classList.remove('open');
+    };
+  });
+  // Bottom nav clicks
+  bnav.querySelectorAll('[data-nav]').forEach(n => {
+    n.onclick = () => nav(n.dataset.nav, null);
+  });
+  $('#signout-btn').onclick = async () => { await sb.auth.signOut(); };
+
+  if (STATE.page==='dashboard') buildDashboard(main);
+  else if (STATE.page==='client') buildClientDetail(main);
+  else if (STATE.page==='invoices') buildInvoices(main);
+  else if (STATE.page==='settings') buildSettings(main);
+}
+
+// ── Auth ──────────────────────────────────────────────────────
+function buildAuth() {
+  $('#app').innerHTML = `
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <div style="text-align:center;margin-bottom:28px">
+        <div class="wordmark" style="font-size:16px">INVOICE LOG</div>
+        <div class="wordmark-sub" style="margin-top:4px;font-size:11px">for creatives</div>
+      </div>
+      <div class="card">
+        <div id="auth-msg"></div>
+        <div class="fg">
+          <div><label>Email</label><input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email"></div>
+          <div><label>Password</label><input type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password"></div>
+          <button class="btn btn-primary" id="auth-submit" style="justify-content:center">Log in</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  $('#auth-email').focus();
+
+  async function submit() {
+    const email=$('#auth-email').value.trim(), pass=$('#auth-pass').value;
+    if (!email||!pass) return;
+    $('#auth-submit').disabled=true;
+    $('#auth-submit').textContent='Logging in…';
+    $('#auth-msg').innerHTML='';
+    const {error} = await sb.auth.signInWithPassword({email,password:pass});
+    if (error) {
+      $('#auth-msg').innerHTML=`<div class="err">${esc(error.message)}</div>`;
+      $('#auth-submit').disabled=false;
+      $('#auth-submit').textContent='Log in';
+    }
+  }
+  $('#auth-submit').onclick = submit;
+  ['auth-email','auth-pass'].forEach(id=>{ document.getElementById(id).addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); }); });
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+function buildDashboard(main) {
+  const completedTot = cid => STATE.entries.filter(e=>e.client_id===cid&&workStatus(e)==='completed').reduce((s,e)=>s+Number(e.computed_total||0),0);
+  const pendTot  = () => STATE.invoices.filter(i=>i.status!=='paid').reduce((s,i)=>s+Number(i.total_amount||0),0);
+  const paidTot  = () => STATE.invoices.filter(i=>i.status==='paid').reduce((s,i)=>s+Number(i.total_amount||0),0);
+  const inProg   = STATE.entries.filter(e=>workStatus(e)==='in_progress').length;
+  const readyBil = STATE.entries.filter(e=>workStatus(e)==='completed').length;
+  const allUnbil = STATE.clients.reduce((s,c)=>s+completedTot(c.id),0);
+
+  // ── Upcoming due dates across all clients ──────────────────
+  const allDue = STATE.entries
+    .filter(e=>e.due_date && workStatus(e)!=='invoiced')
+    .sort((a,b)=>{
+      const pa=duePriority(a.due_date), pb=duePriority(b.due_date);
+      const rank=p=>p==='overdue'?0:p==='today'?1:p==='soon'?2:3;
+      const r=rank(pa)-rank(pb);
+      if(r!==0) return r;
+      return a.due_date.localeCompare(b.due_date);
+    })
+    .slice(0,10);
+
+  function daysLabel(due_date) {
+    const now=new Date(); now.setHours(0,0,0,0);
+    const due=new Date(due_date+'T00:00:00');
+    const diff=Math.round((due-now)/86400000);
+    if(diff<0)  return `<span style="color:#c04848">overdue by ${Math.abs(diff)} day${Math.abs(diff)===1?'':'s'}</span>`;
+    if(diff===0) return `<span style="color:#d4843a">due today</span>`;
+    if(diff===1) return `<span style="color:#8a8478">due tomorrow</span>`;
+    return `<span style="color:var(--text3)">due in ${diff} days</span>`;
+  }
+
+  main.innerHTML = `
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <button class="hamburger" id="hamburger-btn" aria-label="Menu">☰</button>
+        <div class="topbar-left"><div class="topbar-title">Dashboard</div><div class="topbar-sub">Invoice Log</div></div>
+      </div>
+      <div class="topbar-actions"><button class="btn btn-primary" id="new-client-btn">+ New Client</button></div>
+    </div>
+    <div class="content">
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">In Progress</div><div class="stat-val" style="color:var(--text)">${inProg}</div><div class="stat-sub">active projects</div></div>
+        <div class="stat"><div class="stat-label">Ready to Bill</div><div class="stat-val">${$m(allUnbil)}</div><div class="stat-sub">${readyBil} completed</div></div>
+        <div class="stat"><div class="stat-label">Pending Payment</div><div class="stat-val" style="color:var(--fin2)">${$m(pendTot())}</div><div class="stat-sub">invoiced</div></div>
+        <div class="stat"><div class="stat-label">Paid</div><div class="stat-val" style="color:var(--accent2)">${$m(paidTot())}</div><div class="stat-sub">all time</div></div>
+      </div>
+
+      ${allDue.length>0?`
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px">Upcoming Due Dates</div>
+        <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+          ${allDue.map(e=>{
+            const client=STATE.clients.find(c=>c.id===e.client_id);
+            const pri=duePriority(e.due_date);
+            const accent=pri==='overdue'?'border-left:2px solid #c04848':pri==='today'?'border-left:2px solid #d4843a':'border-left:2px solid var(--border)';
+            return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;${accent}" class="due-row" data-client="${e.client_id}">
+              <div style="min-width:0">
+                <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.title)}</div>
+                <div style="font-size:11px;color:var(--text3);margin-top:1px">${esc(client?.name||'')} · ${$d(e.date)}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;margin-left:12px;font-size:11px">${daysLabel(e.due_date)}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`:''}
+
+      <div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px">Clients</div>
+      ${STATE.clients.length===0?'<div class="empty">Add your first client to start tracking billable work</div>':
+        STATE.clients.map(c=>{
+          const ub=completedTot(c.id);
+          const ip=STATE.entries.filter(e=>e.client_id===c.id&&workStatus(e)==='in_progress').length;
+          const co=STATE.entries.filter(e=>e.client_id===c.id&&workStatus(e)==='completed').length;
+          const pend=STATE.invoices.filter(i=>i.client_id===c.id&&i.status!=='paid').reduce((s,i)=>s+Number(i.total_amount||0),0);
+          return `<div class="client-row" data-client="${c.id}">
+            <div>
+              <div style="font-weight:500;font-size:13px">${esc(c.name)}</div>
+              <div style="font-size:11px;color:var(--text3);display:flex;gap:8px;flex-wrap:wrap;margin-top:2px">
+                ${ip>0?`<span>${ip} in progress</span>`:''}
+                ${co>0?`<span>${co} ready to bill</span>`:''}
+                ${pend>0?`<span style="color:var(--fin2)">${$m(pend)} pending</span>`:''}
+                ${ip===0&&co===0&&pend===0?'<span>No active work</span>':''}
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div class="mono-num${ub===0?' muted':' amber'}" style="font-size:14px;font-weight:600">${$m(ub)}</div>
+              <div style="font-size:10px;color:var(--text3)">ready to bill</div>
+            </div>
+          </div>`;
+        }).join('')}
+    </div>`;
+
+  $('#new-client-btn').onclick = () => openClientModal();
+  main.querySelectorAll('[data-client]').forEach(r=>{ r.onclick=()=>nav('client',r.dataset.client); });
+  main.querySelectorAll('.due-row').forEach(r=>{ r.onclick=()=>nav('client',r.dataset.client); });
+  main.querySelectorAll('.due-row').forEach(r=>{ r.addEventListener('mouseenter',()=>r.style.background='var(--bg3)'); r.addEventListener('mouseleave',()=>r.style.background=''); });
+
+  if ($('#hamburger-btn')) {
+    $('#hamburger-btn').onclick = () => {
+      const sb = document.querySelector('.sidebar');
+      const ov = document.querySelector('.mob-overlay');
+      if (sb && ov) { sb.classList.toggle('open'); ov.classList.toggle('open'); }
+    };
+  }
+}
+
+// ── Client Detail ─────────────────────────────────────────────
+function buildClientDetail(main) {
+  const client = STATE.clients.find(c=>c.id===STATE.pageParam);
+  if (!client) { main.innerHTML='<div class="content muted">Client not found.</div>'; return; }
+
+  const allClientEntries = STATE.entries.filter(e=>e.client_id===client.id);
+  const inProgress = sortByDue(allClientEntries.filter(e=>workStatus(e)==='in_progress'));
+  const completed  = sortByDue(allClientEntries.filter(e=>workStatus(e)==='completed'));
+  const invoiced   = allClientEntries.filter(e=>workStatus(e)==='invoiced').sort((a,b)=>b.date.localeCompare(a.date));
+  const unbilTot   = completed.reduce((s,e)=>s+Number(e.computed_total||0),0);
+  let activeTab = 'in_progress';
+
+  // ── Shared badge/detail helpers ──────────────────────────────
+  function entryDetail(e) {
+    if (e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset') return 'Flat fee';
+    if (e.type==='edit')   return `${e.duration_minutes}min · ${EDIT_CATS[e.category]?.label||''}`;
+    if (e.type==='shoot')  return e.billing_mode==='day_rate'?'Day Rate':`${e.hours}h`;
+    if (e.hours)           return `${e.hours}h`;
+    return '';
+  }
+  function typeBadge(e) {
+    if (e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset') {
+      const dt=e.category||'package';
+      const map={shoot:'badge-shoot',edit:'badge-edit',graphic_design:'badge-gfx',render:'badge-render',package:'badge-preset'};
+      const lbl={shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER',package:'PKG'};
+      return `<span class="badge ${map[dt]||'badge-preset'}">${lbl[dt]||'PKG'}</span>`;
+    }
+    if (!e.type) return '';
+    const map={shoot:'badge-shoot',edit:'badge-edit',graphic_design:'badge-gfx',render:'badge-render'};
+    const lbl={shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER'};
+    return `<span class="badge ${map[e.type]||''}">${lbl[e.type]||''}</span>`;
+  }
+
+  // ── IN PROGRESS tab ──────────────────────────────────────────
+  function renderInProgress() {
+    if (!inProgress.length) return `<div class="empty">No active projects.<br>New entries start here — mark complete when ready to bill.</div>`;
+    return `<div class="entry-table">
+      <div class="section-hdr"><span>Active Projects</span><span style="color:var(--text3);font-size:10px">${inProgress.length} project${inProgress.length===1?'':'s'}</span></div>
+      ${inProgress.map(e=>{
+        const pri = duePriority(e.due_date);
+        const rowAccent = pri==='overdue'?'border-left:2px solid #c04848':pri==='today'?'border-left:2px solid #d4843a':'border-left:2px solid transparent';
+        const detail = entryDetail(e);
+        const urgBadge = (() => {
+          const p = duePriority(e.due_date);
+          if (!p) return '';
+          const cfg = {
+            overdue: { label:'OVERDUE',  bg:'rgba(192,72,72,.18)',  color:'#e06060', border:'rgba(192,72,72,.4)' },
+            today:   { label:'DUE TODAY',bg:'rgba(212,132,58,.15)', color:'#d4843a', border:'rgba(212,132,58,.4)' },
+            soon:    { label:'DUE SOON', bg:'rgba(180,160,80,.12)', color:'#c8a84a', border:'rgba(180,160,80,.35)' },
+          };
+          const s = cfg[p]; if (!s) return '';
+          return `<span style="font-size:9px;padding:1px 6px;border-radius:2px;font-weight:700;letter-spacing:.08em;background:${s.bg};border:1px solid ${s.border};color:${s.color};flex-shrink:0">${s.label}</span>`;
+        })();
+        const dueColor = duePriority(e.due_date)==='overdue'?'#e06060':duePriority(e.due_date)==='today'?'#d4843a':'var(--text2)';
+        return `<div class="entry-row entry-row-tap" data-sheet="${e.id}" style="${rowAccent};grid-template-columns:1fr auto">
+          <div style="min-width:0">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.title)}</span>
+              ${urgBadge}
+            </div>
+            ${e.due_date
+              ? `<div style="font-size:11px;font-weight:600;color:${dueColor};margin-top:4px">Due ${fmtDue(e.due_date)}</div>`
+              : ''}
+            <div style="font-size:10px;color:var(--text3);display:flex;gap:5px;align-items:center;margin-top:3px;flex-wrap:wrap">
+              ${typeBadge(e)}<span>${$d(e.date)}</span>${detail?`<span>${detail}</span>`:''}
+            </div>
+          </div>
+          <span style="font-size:16px;color:var(--text3);padding-left:8px;flex-shrink:0">›</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  // ── COMPLETED / UNINVOICED tab ───────────────────────────────
+  function renderCompleted() {
+    if (!completed.length) return `<div class="empty">No completed work ready to bill.<br>Mark projects as finished to move them here.</div>`;
+    return `<div class="entry-table">
+      <div class="section-hdr">
+        <span>Ready to Invoice</span>
+        <span class="amber mono-num" style="font-weight:600">${$m(unbilTot)}</span>
+      </div>
+      ${completed.map(e=>`
+        <div style="display:flex;align-items:center;padding:10px 11px;border-bottom:1px solid var(--border);font-size:12px;gap:10px" class="entry-row-tap completed-row" data-sheet="${e.id}">
+          <span class="dot dot-on" style="margin-top:1px;flex-shrink:0"></span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.title)}</div>
+            <div style="font-size:10px;color:var(--text3);display:flex;gap:5px;align-items:center;margin-top:3px;flex-wrap:wrap">
+              ${typeBadge(e)}<span>${$d(e.date)}</span><span>${entryDetail(e)}</span>
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div class="amber mono-num" style="font-weight:600;font-size:14px;white-space:nowrap">${$m(e.computed_total)}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:1px">tap for actions</div>
+          </div>
+          <span style="font-size:16px;color:var(--text3);flex-shrink:0">›</span>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  // ── INVOICED tab ─────────────────────────────────────────────
+  function renderInvoiced() {
+    if (!invoiced.length) return `<div class="empty">No invoiced entries yet.</div>`;
+    return `<div class="entry-table">
+      <div class="section-hdr"><span>Invoiced</span></div>
+      ${invoiced.map(e=>`
+        <div class="entry-row entry-row-tap" data-sheet="${e.id}" style="grid-template-columns:auto 1fr auto auto">
+          <span class="dot dot-off" style="flex-shrink:0"></span>
+          <div style="min-width:0">
+            <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(e.title)}</div>
+            <div style="font-size:10px;color:var(--text3);display:flex;gap:5px;align-items:center;margin-top:3px">
+              ${typeBadge(e)}<span>${$d(e.date)}</span>
+            </div>
+          </div>
+          <span class="mono-num" style="font-weight:600;text-align:right;color:var(--text2);white-space:nowrap">${$m(e.computed_total)}</span>
+          <span style="font-size:16px;color:var(--text3);padding-left:4px">›</span>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  function drawContent(tab) {
+    const panel=$('#client-panel'); if(!panel)return;
+    const hasCompleted = completed.length > 0;
+    panel.innerHTML=`
+      <div class="tabs">
+        <div class="tab${tab==='in_progress'?' active':''}" data-tab="in_progress">In Progress (${inProgress.length})</div>
+        <div class="tab${tab==='completed'?' active':''}" data-tab="completed">Uninvoiced (${completed.length})</div>
+        <div class="tab${tab==='invoiced'?' active':''}" data-tab="invoiced">Invoiced (${invoiced.length})</div>
+      </div>
+      ${tab==='in_progress' ? renderInProgress() : tab==='completed' ? renderCompleted() : renderInvoiced()}`;
+
+    panel.querySelectorAll('[data-tab]').forEach(t=>{ t.onclick=()=>{ activeTab=t.dataset.tab; drawContent(activeTab); }; });
+    // All entry rows open the detail sheet — actions live inside the sheet
+    panel.querySelectorAll('[data-sheet]').forEach(row=>{
+      row.onclick=()=>{
+        const e=STATE.entries.find(x=>x.id===row.dataset.sheet);
+        if(e) openEntryDetailSheet(e,client,activeTab,{
+          onEdit:    ()=>openEntryModal(client,e),
+          onDelete:  ()=>deleteEntry(e.id),
+          onFinish:  ()=>markFinished(e.id),
+          onReopen:  ()=>reopenEntry(e.id),
+          onUnlock:  ()=>unlockEntry(e.id),
+        });
+      };
+    });
+
+    // Wire Create Invoice button dynamically
+    const cib = $('#build-inv-btn');
+    if (cib) cib.onclick = () => openBuildInvoiceModal(client, completed);
+  }
+
+  main.innerHTML=`
+    <div class="topbar">
+      <div class="topbar-left">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="back-btn" style="padding:2px 8px">←</button>
+          <div class="topbar-title">${esc(client.name)}</div>
+        </div>
+        <div class="topbar-sub">
+          ${inProgress.length>0?`<span style="color:var(--text2)">${inProgress.length} in progress</span>`:''}
+          ${inProgress.length>0&&completed.length>0?' · ':''}
+          ${completed.length>0?`<span class="amber">${$m(unbilTot)} ready to bill</span>`:''}
+          ${inProgress.length===0&&completed.length===0?'No active work':''}
+        </div>
+      </div>
+      <div class="topbar-actions">
+        ${completed.length>0?'<button class="btn btn-ghost" id="build-inv-btn">Create Invoice</button>':''}
+        <button class="btn btn-primary" id="add-entry-btn">+ Entry</button>
+      </div>
+    </div>
+    <div class="content"><div id="client-panel"></div></div>`;
+
+  drawContent(activeTab);
+  $('#back-btn').onclick=()=>nav('dashboard');
+  $('#add-entry-btn').onclick=()=>openEntryModal(client);
+
+  async function deleteEntry(id) {
+    if(!confirm('Delete this entry?'))return;
+    await sb.from('entries').delete().eq('id',id); fetchAll();
+  }
+
+  async function markFinished(id) {
+    // in_progress → completed, preserves all metadata
+    const {error} = await sb.from('entries').update({work_status:'completed'}).eq('id',id);
+    if(error){ alert('Error: '+error.message); return; }
+    fetchAll();
+  }
+
+  async function reopenEntry(id) {
+    // completed → in_progress, preserves all metadata
+    const {error} = await sb.from('entries').update({work_status:'in_progress'}).eq('id',id);
+    if(error){ alert('Error: '+error.message); return; }
+    fetchAll();
+  }
+
+  async function unlockEntry(id) {
+    if(!confirm('Remove from invoice and return to Uninvoiced?'))return;
+    const e=STATE.entries.find(x=>x.id===id);
+    if(e?.invoice_id) {
+      const inv=STATE.invoices.find(i=>i.id===e.invoice_id);
+      if(inv) {
+        const newIds=(inv.entry_ids||[]).filter(x=>x!==id);
+        const newTot=newIds.reduce((s,eid)=>{ const en=STATE.entries.find(x=>x.id===eid); return s+Number(en?.computed_total||0); },0);
+        await sb.from('invoices').update({entry_ids:newIds,total_amount:newTot}).eq('id',inv.id);
+      }
+    }
+    await sb.from('entries').update({invoiced:false,invoice_id:null,work_status:'completed'}).eq('id',id);
+    fetchAll();
+  }
+}
+
+// ── Invoices Page ─────────────────────────────────────────────
+function buildInvoices(main) {
+  const sorted  =[...STATE.invoices].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const active  =sorted.filter(i=>i.status!=='paid');
+  const archived=sorted.filter(i=>i.status==='paid');
+
+  function invCard(inv) {
+    const client  =STATE.clients.find(c=>c.id===inv.client_id);
+    const invEnts =STATE.entries.filter(e=>(inv.entry_ids||[]).includes(e.id));
+    const dates   =invEnts.map(e=>new Date(e.date+'T00:00:00')).filter(d=>!isNaN(d));
+    const mn=dates.length?$d(new Date(Math.min(...dates)).toISOString().slice(0,10)):'';
+    const mx=dates.length?$d(new Date(Math.max(...dates)).toISOString().slice(0,10)):'';
+    const sb_map={draft:'badge-draft',sent:'badge-sent',paid:'badge-paid'};
+    return `<div class="inv-card">
+      <div style="display:flex;align-items:center">
+        <div class="inv-hdr" data-inv="${inv.id}" style="flex:1">
+          <div>
+            <div style="font-weight:500;font-size:13px">${esc(client?.name||'Unknown')}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px">#${inv.id.slice(0,8).toUpperCase()} · ${mn}${mx!==mn?` – ${mx}`:''} · ${invEnts.length} entries</div>
+          </div>
+          <div style="display:flex;gap:11px;align-items:center">
+            <span class="badge ${sb_map[inv.status]||''}">${inv.status}</span>
+            <span class="amber mono-num" style="font-weight:600;font-size:14px">${$m(inv.total_amount)}</span>
+            <span class="muted" style="font-size:16px">›</span>
+          </div>
+        </div>
+        <button class="btn btn-danger btn-sm" data-del-inv="${inv.id}" style="margin-right:10px;flex-shrink:0" title="Delete invoice">✕</button>
+      </div>
+    </div>`;
+  }
+
+  main.innerHTML=`
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Invoices</div><div class="topbar-sub">${STATE.invoices.length} total · ${active.length} active</div></div>
+    </div>
+    <div class="content">
+      ${STATE.invoices.length===0?'<div class="empty">No invoices yet. Build one from a client page.</div>':''}
+      ${active.length>0?`<div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px">Active</div>${active.map(invCard).join('')}<div style="height:16px"></div>`:''}
+      ${archived.length>0?`<div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px">Archived (Paid)</div>${archived.map(invCard).join('')}`:''}
+    </div>`;
+  main.querySelectorAll('[data-inv]').forEach(el=>{
+    el.onclick=()=>{ const inv=STATE.invoices.find(i=>i.id===el.dataset.inv); if(inv) openInvoiceDetail(inv); };
+  });
+  main.querySelectorAll('[data-del-inv]').forEach(btn=>{
+    btn.onclick=(ev)=>{ ev.stopPropagation(); const inv=STATE.invoices.find(i=>i.id===btn.dataset.delInv); if(inv) confirmDeleteInvoice(inv); };
+  });
+}
+
+// ── Delete Invoice Confirmation ───────────────────────────────
+function confirmDeleteInvoice(inv) {
+  const client = STATE.clients.find(c=>c.id===inv.client_id);
+  const isPaid = inv.status==='paid';
+  const hasStripe = !!inv.stripe_invoice_id;
+  const {ov,mo} = makeOverlay(`
+    <div class="modal-hdr">
+      <span style="font-weight:600;font-size:13px">Delete Invoice?</span>
+      <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px">
+        Invoice #${inv.id.slice(0,8).toUpperCase()} · ${esc(client?.name||'')} · ${$m(inv.total_amount)}
+      </div>
+      ${isPaid ? `
+      <div style="background:rgba(192,72,72,.1);border:1px solid rgba(192,72,72,.3);color:#e06060;padding:10px 13px;border-radius:var(--r);font-size:12px;margin-bottom:12px">
+        ⚠ This invoice is marked <strong>paid</strong>. Deleting it will remove it from Invoice Log but will NOT affect your Stripe record.
+      </div>` : ''}
+      ${hasStripe && !isPaid ? `
+      <div style="background:var(--fin-bg);border:1px solid var(--fin-border);color:var(--fin2);padding:10px 13px;border-radius:var(--r);font-size:12px;margin-bottom:12px">
+        This invoice exists in Stripe (${esc(inv.stripe_invoice_id)}). Deleting it here will also attempt to void it in Stripe.
+      </div>` : ''}
+      <div style="font-size:12px;color:var(--text3)">
+        This will permanently remove the invoice from Invoice Log. Entries will be returned to Uninvoiced.
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" id="m-cancel">Cancel</button>
+      <button class="btn btn-danger" id="m-confirm" style="border:1px solid var(--red)">Delete Invoice</button>
+    </div>`);
+
+  mo.querySelector('#m-close').onclick = mo.querySelector('#m-cancel').onclick = () => ov.remove();
+  mo.querySelector('#m-confirm').onclick = async () => {
+    const btn = mo.querySelector('#m-confirm');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      // 1. Void in Stripe if applicable (draft/open only — can't void paid)
+      if(hasStripe && !isPaid) {
+        try {
+          await fetch('/api/stripe', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ action:'void_invoice', payload:{ stripe_invoice_id: inv.stripe_invoice_id } }),
+          });
+        } catch(e) { /* non-fatal — continue with local delete */ }
+      }
+      // 2. Return entries to uninvoiced
+      if(inv.entry_ids?.length) {
+        await sb.from('entries').update({invoiced:false,invoice_id:null}).in('id',inv.entry_ids);
+      }
+      // 3. Delete invoice record
+      await sb.from('invoices').delete().eq('id',inv.id);
+      ov.remove(); fetchAll();
+    } catch(e) {
+      alert('Delete failed: '+e.message);
+      btn.disabled=false; btn.textContent='Delete Invoice';
+    }
+  };
+}
+
+// ── Settings Page ─────────────────────────────────────────────
+function buildSettings(main) {
+  const rateLabels={shoot_hourly_rate:'Shoot/hr',shoot_day_rate:'Shoot/day',edit_rate_per_minute:'Edit/min',graphic_design_hourly_rate:'GFX/hr',render_hourly_rate:'Render/hr'};
+
+  function clientCard(c) {
+    const presets = c.presets||[];
+    return `<div class="card" style="margin-bottom:11px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-weight:600;font-size:14px">${esc(c.name)}</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" data-view="${c.id}">View</button>
+          <button class="btn btn-ghost btn-sm" data-edit="${c.id}">Edit</button>
+          <button class="btn btn-danger btn-sm" data-del="${c.id}">Delete</button>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">Standard Rates</div>
+      <div style="margin-bottom:${presets.length>0?'12px':'0'}">
+        ${Object.entries(c.default_rates||{}).filter(([,v])=>v).map(([k,v])=>`<span class="chip">${rateLabels[k]||k}: ${$m(v)}</span>`).join('')||'<span style="font-size:11px;color:var(--text3)">No rates set</span>'}
+      </div>
+      ${presets.length>0?`
+        <div style="font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px">Packages / Presets</div>
+        <div>${presets.map(p=>{
+          const dtLabel={package:'PKG',edit:'EDIT',shoot:'SHOOT',graphic_design:'GFX',render:'RENDER'}[p.display_type||'package']||'PKG';
+          return `<span class="chip" style="background:rgba(212,168,67,.08);border-color:rgba(212,168,67,.2);color:var(--amber)">${esc(p.name)}: ${$m(p.price)} <span style="opacity:.6">[${dtLabel}]</span></span>`;
+        }).join('')}</div>
+      `:''}
+    </div>`;
+  }
+
+  main.innerHTML=`
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title">Settings</div><div class="topbar-sub">Client rates & packages</div></div>
+      <div class="topbar-actions"><button class="btn btn-primary" id="new-client-btn">+ New Client</button></div>
+    </div>
+    <div class="content">
+      ${STATE.clients.length===0?'<div class="empty">No clients yet</div>':STATE.clients.map(clientCard).join('')}
+    </div>`;
+
+  $('#new-client-btn').onclick=()=>openClientModal();
+  main.querySelectorAll('[data-view]').forEach(b=>{ b.onclick=()=>nav('client',b.dataset.view); });
+  main.querySelectorAll('[data-edit]').forEach(b=>{ b.onclick=()=>{ const c=STATE.clients.find(x=>x.id===b.dataset.edit); openClientModal(c); }; });
+  main.querySelectorAll('[data-del]').forEach(b=>{ b.onclick=async()=>{
+    if(!confirm('Delete client and all their data?'))return;
+    await sb.from('clients').delete().eq('id',b.dataset.del); fetchAll();
+  }; });
+}
+
+// ── Modals ────────────────────────────────────────────────────
+function makeOverlay(content,wide=false) {
+  const ov=el('div','overlay');
+  const mo=el('div',wide?'modal wide':'modal');
+  mo.innerHTML=content;
+  ov.appendChild(mo);
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+  return {ov,mo};
+}
+
+// ── Client Modal (with presets) ───────────────────────────────
+function openClientModal(client=null) {
+  const rates   = client?.default_rates||{};
+  // presets stored as JSON array in the presets column
+  let presets   = JSON.parse(JSON.stringify(client?.presets||[]));
+
+  const rFields=[
+    {key:'shoot_hourly_rate',        label:'Shoot — Hourly ($)',         ph:'150'},
+    {key:'shoot_day_rate',           label:'Shoot — Day Rate ($)',        ph:'1200'},
+    {key:'edit_rate_per_minute',     label:'Edit — Per Minute ($)',       ph:'8'},
+    {key:'graphic_design_hourly_rate',label:'Graphic Design — Hourly ($)',ph:'120'},
+    {key:'render_hourly_rate',       label:'Render — Hourly ($)',         ph:'100'},
+  ];
+
+  const {ov,mo}=makeOverlay(`
+    <div class="modal-hdr">
+      <span style="font-weight:600;font-size:13px">${client?'Edit Client':'New Client'}</span>
+      <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <div class="fr c2">
+          <div><label>Client Name</label><input id="c-name" value="${esc(client?.name||'')}" placeholder="Acme Corp"></div>
+          <div><label>Email (for Stripe)</label><input type="email" id="c-email" value="${esc(client?.email||'')}" placeholder="client@example.com"></div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--border)">Standard Rates</div>
+          <div class="fr c2" style="margin-top:8px">
+            ${rFields.map(f=>`<div><label>${f.label}</label><input type="number" step="0.01" min="0" id="r-${f.key}" value="${rates[f.key]||''}" placeholder="${f.ph}"></div>`).join('')}
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px;padding-bottom:6px;border-bottom:1px solid var(--border)">Packages / Preset Rates</div>
+          <div id="presets-list" style="margin-bottom:10px"></div>
+          <div class="fr c2" style="align-items:flex-end">
+            <div><label>Package Name</label><input id="p-name" placeholder="e.g. Reel Edit Package"></div>
+            <div><label>Price ($)</label><input type="number" step="0.01" min="0" id="p-price" placeholder="600"></div>
+          </div>
+          <div style="margin-top:8px">
+            <label>Display As</label>
+            <select id="p-display-type">
+              <option value="package">Package (PKG)</option>
+              <option value="edit">Edit (EDIT)</option>
+              <option value="shoot">Shoot</option>
+              <option value="graphic_design">Graphic Design (GFX)</option>
+              <option value="render">Render</option>
+            </select>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="add-preset-btn" style="margin-top:8px">+ Add Package</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" id="m-cancel">Cancel</button>
+      <button class="btn btn-primary" id="m-save">Save Client</button>
+    </div>`);
+
+  mo.querySelector('#m-close').onclick=mo.querySelector('#m-cancel').onclick=()=>ov.remove();
+  mo.querySelector('#c-name').focus();
+
+  function renderPresets() {
+    const list=mo.querySelector('#presets-list');
+    if(!presets.length){ list.innerHTML='<div style="font-size:11px;color:var(--text3);margin-bottom:4px">No packages yet</div>'; return; }
+    const dtLabel=dt=>({package:'PKG',edit:'EDIT',shoot:'SHOOT',graphic_design:'GFX',render:'RENDER'}[dt||'package']||'PKG');
+    list.innerHTML=`<div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:4px">
+      ${presets.map((p,i)=>`
+        <div class="preset-row">
+          <span class="badge badge-${p.display_type==='package'?'preset':p.display_type==='graphic_design'?'gfx':p.display_type||'preset'}" style="flex-shrink:0">${dtLabel(p.display_type)}</span>
+          <span style="flex:1;font-weight:500;margin-left:4px">${esc(p.name)}</span>
+          <span class="amber mono-num" style="margin-right:12px">${$m(p.price)}</span>
+          <button class="btn btn-ghost btn-sm" data-pi="${i}" title="Delete preset" style="color:var(--red);border-color:transparent;padding:2px 6px">✕</button>
+        </div>`).join('')}
+    </div>`;
+    list.querySelectorAll('[data-pi]').forEach(b=>{
+      b.onclick=()=>{ presets.splice(Number(b.dataset.pi),1); renderPresets(); };
+    });
+  }
+  renderPresets();
+
+  mo.querySelector('#add-preset-btn').onclick=()=>{
+    const name=mo.querySelector('#p-name').value.trim();
+    const price=mo.querySelector('#p-price').value;
+    const display_type=mo.querySelector('#p-display-type').value||'package';
+    if(!name||!price) return;
+    presets.push({name,price:Number(price),display_type});
+    mo.querySelector('#p-name').value='';
+    mo.querySelector('#p-price').value='';
+    renderPresets();
+    mo.querySelector('#p-name').focus();
+  };
+  // Also allow Enter in preset fields to add
+  mo.querySelector('#p-price').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); mo.querySelector('#add-preset-btn').click(); } });
+
+  mo.querySelector('#m-save').onclick=async()=>{
+    const name=mo.querySelector('#c-name').value.trim();
+    const email=mo.querySelector('#c-email').value.trim();
+    if(!name) return;
+    const dr={};
+    rFields.forEach(f=>{ const v=mo.querySelector(`#r-${f.key}`).value; if(v) dr[f.key]=Number(v); });
+    const btn=mo.querySelector('#m-save');
+    btn.disabled=true; btn.textContent='Saving…';
+    if(client) {
+      const {error}=await sb.from('clients').update({name,email,default_rates:dr,presets}).eq('id',client.id);
+      if(error){ btn.disabled=false; btn.textContent='Save Client'; alert('Error: '+error.message); return; }
+    } else {
+      const {data,error}=await sb.from('clients').insert({name,email,default_rates:dr,presets,user_id:STATE.user.id}).select().single();
+      if(error){ btn.disabled=false; btn.textContent='Save Client'; alert('Error: '+error.message); return; }
+      if(data) STATE.clients.push(data);
+    }
+    ov.remove();
+    await fetchAll();
+  };
+}
+
+// ── Entry Modal ───────────────────────────────────────────────
+function openEntryModal(client, entry=null) {
+  const e      = entry||{};
+  const rates  = client.default_rates||{};
+  const presets= client.presets||[];
+
+  function getDefaultRate(type,billing_mode) {
+    if(type==='shoot') return billing_mode==='day_rate'?Number(rates.shoot_day_rate||0):Number(rates.shoot_hourly_rate||0);
+    if(type==='edit')  return Number(rates.edit_rate_per_minute||0);
+    if(type==='graphic_design') return Number(rates.graphic_design_hourly_rate||0);
+    if(type==='render') return Number(rates.render_hourly_rate||0);
+    return 0;
+  }
+
+  const isPresetEntry = e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset';
+  let entryMode = isPresetEntry ? 'preset' : 'standard';
+  let selectedPresetIdx = isPresetEntry ? presets.findIndex(p=>p.name===e.title) : -1;
+
+  const {ov,mo}=makeOverlay(`
+    <div class="modal-hdr">
+      <span style="font-weight:600;font-size:13px">${entry?'Edit Entry':'New Entry'} — ${esc(client.name)}</span>
+      <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+
+        <!-- ── LAYER 1: Work Identity (always present, never overwritten) ── -->
+        <div>
+          <div style="font-size:9px;color:var(--text3);letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border)">Project</div>
+          <div class="fr c2">
+            <div>
+              <label>Project Title</label>
+              <input id="e-title" value="${esc(e.title||'')}" placeholder="e.g. Ovidio Gomez Shoot" required>
+            </div>
+            <div>
+              <label>Due Date <span style="color:var(--text3);font-weight:400">(optional)</span></label>
+              <input type="date" id="e-due-date" value="${e.due_date||''}">
+            </div>
+          </div>
+        </div>
+
+        <!-- ── LAYER 2: Production Tracking ── -->
+        <div class="fr c2">
+          <div><label>Work Date</label><input type="date" id="e-date" value="${e.date||today()}"></div>
+          <div></div>
+        </div>
+
+        <!-- ── LAYER 3: Billing (never touches title) ── -->
+        <div>
+          <div style="font-size:9px;color:var(--text3);letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border)">Billing</div>
+          ${presets.length>0?`
+          <div style="margin-bottom:10px">
+            <label>Billing Method</label>
+            <div class="mode-toggle">
+              <button class="mode-btn${entryMode==='standard'?' active':''}" id="mode-standard">Standard</button>
+              <button class="mode-btn${entryMode==='preset'?' active':''}" id="mode-preset">Package / Preset</button>
+            </div>
+          </div>`:''}
+          <div id="entry-form-body"></div>
+        </div>
+
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;display:flex;justify-content:space-between;align-items:center">
+          <span style="color:var(--text3);font-size:11px">TOTAL</span>
+          <span class="amber mono-num" style="font-weight:600;font-size:16px" id="e-preview">$0.00</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" id="m-cancel">Cancel</button>
+      <button class="btn btn-primary" id="m-save">Save Entry</button>
+    </div>`);
+
+  mo.querySelector('#m-close').onclick=mo.querySelector('#m-cancel').onclick=()=>ov.remove();
+  // Focus project title immediately
+  setTimeout(()=>mo.querySelector('#e-title')?.focus(), 50);
+
+  function updatePreview() {
+    if(entryMode==='preset') {
+      const idx=selectedPresetIdx;
+      if(idx>=0&&presets[idx]) {
+        const override=mo.querySelector('#e-override')?.value;
+        mo.querySelector('#e-preview').textContent=$m(override||presets[idx].price);
+      } else {
+        mo.querySelector('#e-preview').textContent='$0.00';
+      }
+      return;
+    }
+    const type=mo.querySelector('#e-type')?.value||'shoot';
+    const billing_mode=mo.querySelector('#e-billing-mode')?.value||'hourly';
+    const hours=mo.querySelector('#e-hours')?.value||0;
+    const mins=mo.querySelector('#e-mins')?.value||0;
+    const cat=mo.querySelector('#e-cat')?.value||'basic';
+    const override=mo.querySelector('#e-rate')?.value||null;
+    const tot=computeTotal({type,billing_mode,hours,duration_minutes:mins,category:cat,rate_override:override||null},client);
+    mo.querySelector('#e-preview').textContent=$m(tot);
+  }
+
+  function renderPresetForm() {
+    const body=mo.querySelector('#entry-form-body');
+    body.innerHTML=`
+      <div>
+        <label>Package</label>
+        <div class="preset-pick" id="preset-pick">
+          ${presets.map((p,i)=>{
+            const dt=p.display_type||'package';
+            const bmap={shoot:'badge-shoot',edit:'badge-edit',graphic_design:'badge-gfx',render:'badge-render',package:'badge-preset'};
+            const blbl={shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER',package:'PKG'};
+            return `<div class="preset-opt${selectedPresetIdx===i?' selected':''}" data-pi="${i}">
+              <span style="display:flex;align-items:center;gap:6px"><span class="badge ${bmap[dt]||'badge-preset'}">${blbl[dt]||'PKG'}</span>${esc(p.name)}</span>
+              <span class="amber mono-num" style="font-weight:600">${$m(p.price)}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div><label>Price Override <span style="color:var(--text3);font-weight:400">(optional)</span></label><input type="number" step="0.01" min="0" id="e-override" value="${isPresetEntry&&e.rate_override?e.rate_override:''}" placeholder="Leave blank to use package price"></div>`;
+
+    // NOTE: selecting a package NEVER touches the title field
+    body.querySelectorAll('.preset-opt').forEach(opt=>{
+      opt.onclick=()=>{
+        selectedPresetIdx=Number(opt.dataset.pi);
+        body.querySelectorAll('.preset-opt').forEach(o=>o.classList.remove('selected'));
+        opt.classList.add('selected');
+        updatePreview();
+        // Title field intentionally NOT touched
+      };
+    });
+    mo.querySelector('#e-override').oninput=updatePreview;
+    updatePreview();
+  }
+
+  function renderStandardForm() {
+    const body=mo.querySelector('#entry-form-body');
+    body.innerHTML=`
+      <div class="fr c2">
+        <div><label>Type</label>
+          <select id="e-type">
+            <option value="shoot"${(e.type||'shoot')==='shoot'?' selected':''}>Shoot</option>
+            <option value="edit"${e.type==='edit'?' selected':''}>Edit</option>
+            <option value="graphic_design"${e.type==='graphic_design'?' selected':''}>Graphic Design</option>
+            <option value="render"${e.type==='render'?' selected':''}>Render</option>
+          </select>
+        </div>
+        <div></div>
+      </div>
+      <div id="e-type-fields"></div>
+      <div><label>Rate Override <span style="color:var(--text3);font-weight:400">(optional)</span></label><input type="number" step="0.01" min="0" id="e-rate" value="${!isPresetEntry&&e.rate_override?e.rate_override:''}" placeholder="Default rate"></div>`;
+
+    function updateTypeFields() {
+      const type=mo.querySelector('#e-type').value;
+      const tf=mo.querySelector('#e-type-fields');
+      if(type==='shoot') {
+        tf.innerHTML=`<div class="fr c2">
+          <div><label>Billing Mode</label>
+            <select id="e-billing-mode">
+              <option value="hourly"${(e.billing_mode||'hourly')==='hourly'?' selected':''}>Hourly</option>
+              <option value="day_rate"${e.billing_mode==='day_rate'?' selected':''}>Day Rate</option>
+            </select>
+          </div>
+          <div id="e-hours-wrap"><label>Hours</label><input type="number" step="0.5" min="0" id="e-hours" value="${!isPresetEntry?e.hours||'':''}" placeholder="8"></div>
+        </div>`;
+        mo.querySelector('#e-billing-mode').onchange=()=>{
+          const dm=mo.querySelector('#e-billing-mode').value;
+          mo.querySelector('#e-hours-wrap').style.display=dm==='day_rate'?'none':'block';
+          mo.querySelector('#e-rate').placeholder=`Default: ${$m(getDefaultRate(type,dm))}`;
+          updatePreview();
+        };
+        if(!isPresetEntry&&e.billing_mode==='day_rate') mo.querySelector('#e-hours-wrap').style.display='none';
+        mo.querySelector('#e-rate').placeholder=`Default: ${$m(getDefaultRate(type,!isPresetEntry?e.billing_mode||'hourly':'hourly'))}`;
+      } else if(type==='edit') {
+        tf.innerHTML=`<div class="fr c2">
+          <div><label>Duration (minutes)</label><input type="number" min="0" step="1" id="e-mins" value="${!isPresetEntry?e.duration_minutes||'':''}" placeholder="120"></div>
+          <div><label>Category</label>
+            <select id="e-cat">
+              ${Object.entries(EDIT_CATS).map(([k,v])=>`<option value="${k}"${(!isPresetEntry&&e.category||'basic')===k?' selected':''}>${v.label} (×${v.mult})</option>`).join('')}
+            </select>
+          </div>
+        </div>`;
+        mo.querySelector('#e-rate').placeholder=`Default: ${$m(getDefaultRate(type))}`;
+      } else {
+        tf.innerHTML=`<div class="fr c2">
+          <div><label>Hours</label><input type="number" step="0.5" min="0" id="e-hours" value="${!isPresetEntry?e.hours||'':''}" placeholder="4"></div>
+          <div></div>
+        </div>`;
+        mo.querySelector('#e-rate').placeholder=`Default: ${$m(getDefaultRate(type))}`;
+      }
+      tf.querySelectorAll('input,select').forEach(i=>{ i.oninput=i.onchange=updatePreview; });
+      mo.querySelector('#e-rate').oninput=updatePreview;
+      updatePreview();
+    }
+    mo.querySelector('#e-type').onchange=updateTypeFields;
+    updateTypeFields();
+  }
+
+  function setMode(m) {
+    entryMode=m;
+    mo.querySelector('#mode-standard')?.classList.toggle('active',m==='standard');
+    mo.querySelector('#mode-preset')?.classList.toggle('active',m==='preset');
+    if(m==='preset') renderPresetForm(); else renderStandardForm();
+  }
+
+  if(presets.length>0) {
+    mo.querySelector('#mode-standard').onclick=()=>setMode('standard');
+    mo.querySelector('#mode-preset').onclick=()=>setMode('preset');
+  }
+
+  if(entryMode==='preset') renderPresetForm(); else renderStandardForm();
+
+  mo.querySelector('#m-save').onclick=async()=>{
+    // ── LAYER 1: Work Identity — always read from dedicated fields ──
+    const title    = mo.querySelector('#e-title')?.value.trim();
+    const date     = mo.querySelector('#e-date').value;
+    const due_date = mo.querySelector('#e-due-date').value || null;
+    if(!title){ mo.querySelector('#e-title').focus(); return; }
+    if(!date) return;
+
+    const btn=mo.querySelector('#m-save');
+    btn.disabled=true; btn.textContent='Saving…';
+
+    // ── LAYER 3: Billing — independent, never touches title ──
+    let billing;
+    if(entryMode==='preset') {
+      if(selectedPresetIdx<0||!presets[selectedPresetIdx]){ btn.disabled=false; btn.textContent='Save Entry'; return; }
+      const preset   = presets[selectedPresetIdx];
+      const priceOverride = mo.querySelector('#e-override')?.value;
+      const finalPrice = priceOverride ? Number(priceOverride) : Number(preset.price);
+      billing = {
+        type: 'package',
+        billing_mode: 'flat_fee',
+        hours: null,
+        duration_minutes: null,
+        category: preset.display_type || 'package',
+        rate_override: priceOverride ? Number(priceOverride) : null,
+        computed_total: finalPrice,
+      };
+    } else {
+      const type         = mo.querySelector('#e-type').value;
+      const billing_mode = mo.querySelector('#e-billing-mode')?.value || 'hourly';
+      const hours        = mo.querySelector('#e-hours')?.value || null;
+      const mins         = mo.querySelector('#e-mins')?.value || null;
+      const cat          = mo.querySelector('#e-cat')?.value || 'basic';
+      const rate_override= mo.querySelector('#e-rate')?.value || null;
+      const computed     = computeTotal({type,billing_mode,hours,duration_minutes:mins,category:cat,rate_override:rate_override||null},client);
+      billing = {
+        type,
+        billing_mode: type==='shoot' ? billing_mode : null,
+        hours:        hours !== null ? Number(hours) : null,
+        duration_minutes: mins !== null ? Number(mins) : null,
+        category:     cat || null,
+        rate_override: rate_override ? Number(rate_override) : null,
+        computed_total: computed,
+      };
+    }
+
+    // Merge: identity + production + billing — never let billing overwrite title
+    const payload = { title, date, due_date, ...billing };
+
+    if(entry) {
+      const {error} = await sb.from('entries').update(payload).eq('id',entry.id);
+      if(error){ alert('Save failed: '+error.message); btn.disabled=false; btn.textContent='Save Entry'; return; }
+    } else {
+      const {error} = await sb.from('entries').insert({...payload,client_id:client.id,user_id:STATE.user.id,invoiced:false,invoice_id:null,work_status:'in_progress'});
+      if(error){ alert('Save failed: '+error.message); btn.disabled=false; btn.textContent='Save Entry'; return; }
+    }
+    ov.remove(); fetchAll();
+  };
+}
+
+// ── Invoice helpers ───────────────────────────────────────────
+const GROUP_ORDER = ['shoot','edit','graphic_design','render','package'];
+const GROUP_LABELS = {shoot:'Shoots',edit:'Edits',graphic_design:'Graphic Design',render:'3D Renders',package:'Package / Flat Fee'};
+
+function entryGroup(e) {
+  if(e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset') {
+    // category holds the display_type for packages; use it for grouping
+    const dt = e.category;
+    if(dt&&dt!=='package'&&['shoot','edit','graphic_design','render'].includes(dt)) return dt;
+    return 'package';
+  }
+  return e.type;
+}
+
+function billingDetail(e) {
+  if(e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset') return 'package fee';
+  if(e.billing_mode==='day_rate')  return 'day rate';
+  if(e.type==='edit')              return `${e.duration_minutes} min edit`;
+  if(e.hours)                      return `${e.hours} hr${Number(e.hours)!==1?'s':''}`;
+  return '';
+}
+
+function buildGroupedPreview(selected) {
+  if(!selected.length) return '';
+  const groups = {};
+  GROUP_ORDER.forEach(g=>{ groups[g]=[]; });
+  selected.forEach(e=>{ const g=entryGroup(e); if(!groups[g]) groups[g]=[]; groups[g].push(e); });
+  // sort each group chronologically
+  Object.values(groups).forEach(arr=>arr.sort((a,b)=>a.date.localeCompare(b.date)));
+
+  const grandTotal = selected.reduce((s,e)=>s+Number(e.computed_total||0),0);
+
+  let html = '<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">';
+
+  GROUP_ORDER.forEach(grp=>{
+    const ents = groups[grp];
+    if(!ents.length) return;
+    const subtotal = ents.reduce((s,e)=>s+Number(e.computed_total||0),0);
+    html += `<div style="border-bottom:1px solid var(--border)">
+      <div style="padding:6px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);background:var(--bg2)">${GROUP_LABELS[grp]}</div>
+      ${ents.map(e=>`
+        <div style="display:grid;grid-template-columns:60px 1fr 90px 80px;gap:8px;padding:6px 12px;font-size:11px;border-top:1px solid var(--border);align-items:center">
+          <span style="color:var(--text3)">${$d(e.date)}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.title)}</span>
+          <span style="color:var(--text3)">${billingDetail(e)}</span>
+          <span class="mono-num" style="text-align:right;font-weight:500">${$m(e.computed_total)}</span>
+        </div>`).join('')}
+      <div style="display:flex;justify-content:space-between;padding:5px 12px 7px;font-size:11px;color:var(--text2)">
+        <span>Subtotal</span><span class="mono-num">${$m(subtotal)}</span>
+      </div>
+    </div>`;
+  });
+
+  html += `<div class="total-row total-grand" style="padding:10px 12px"><span>Invoice Total</span><span class="mono-num">${$m(grandTotal)}</span></div></div>`;
+  return html;
+}
+
+// ── Build Invoice Modal ───────────────────────────────────────
+function openBuildInvoiceModal(client, uninvoiced) {
+  const sel=new Set(uninvoiced.map(e=>e.id));
+
+  function badgeFor(e) {
+    if(e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset') {
+      const dt=e.category||'package';
+      const map={shoot:'badge-shoot',edit:'badge-edit',graphic_design:'badge-gfx',render:'badge-render',package:'badge-preset'};
+      const lbl={shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER',package:'PKG'};
+      return `<span class="badge ${map[dt]||'badge-preset'}">${lbl[dt]||'PKG'}</span>`;
+    }
+    const map={shoot:'badge-shoot',edit:'badge-edit',graphic_design:'badge-gfx',render:'badge-render'};
+    const lbl={shoot:'SHOOT',edit:'EDIT',graphic_design:'GFX',render:'RENDER'};
+    return `<span class="badge ${map[e.type]||''}">${lbl[e.type]||e.type}</span>`;
+  }
+
+  const {ov,mo}=makeOverlay(`
+    <div class="modal-hdr">
+      <span style="font-weight:600;font-size:13px">Create Invoice — ${esc(client.name)}</span>
+      <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <button id="sel-all-btn" style="font-size:11px;color:var(--text2);background:none;border:1px solid var(--border2);border-radius:var(--r);padding:3px 9px;cursor:pointer;font-family:var(--mono)">Select all</button>
+        <span id="sel-count" style="font-size:11px;color:var(--text3)">${uninvoiced.length} selected</span>
+      </div>
+      <div id="entry-list-wrap" style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;max-height:220px;overflow-y:auto;margin-bottom:14px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase">Invoice Preview</div>
+        <div class="stripe-toggle-wrap" id="stripe-toggle-wrap">
+          <input type="checkbox" id="stripe-toggle">
+          <div class="stripe-pill"></div>
+          <span class="stripe-toggle-label">Cover Stripe Fees</span>
+        </div>
+      </div>
+      <div id="inv-preview"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-ghost" id="m-cancel">Cancel</button>
+      <button class="btn btn-primary" id="m-build">Generate Invoice Draft</button>
+    </div>`,true);
+
+  mo.querySelector('#m-close').onclick=mo.querySelector('#m-cancel').onclick=()=>ov.remove();
+
+  let coverStripe = false;
+
+  // ── Reactive entry list — re-renders from sel Set every time ──
+  function renderEntryList() {
+    const wrap = mo.querySelector('#entry-list-wrap');
+    wrap.innerHTML = uninvoiced.map(e => {
+      const on = sel.has(e.id);
+      return `<div data-eid="${e.id}" style="display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid var(--border);cursor:pointer;background:${on?'var(--accent-bg)':'transparent'};transition:background .08s">
+        <div style="width:15px;height:15px;border-radius:2px;border:1.5px solid ${on?'var(--accent)':'var(--border2)'};background:${on?'var(--accent)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .08s">
+          ${on?'<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}
+        </div>
+        ${badgeFor(e)}
+        <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.title)}</span>
+        <span style="font-size:11px;color:var(--text3);margin-right:10px;white-space:nowrap">${$d(e.date)}</span>
+        <span class="amber mono-num" style="font-weight:600;font-size:12px;white-space:nowrap">${$m(e.computed_total)}</span>
+      </div>`;
+    }).join('');
+
+    // Wire row clicks directly to sel toggle
+    wrap.querySelectorAll('[data-eid]').forEach(row => {
+      row.onclick = () => {
+        const id = row.dataset.eid;
+        sel.has(id) ? sel.delete(id) : sel.add(id);
+        renderEntryList();
+        updatePreview();
+      };
+    });
+  }
+
+  function updatePreview() {
+    const selected = uninvoiced.filter(e=>sel.has(e.id));
+    const allOn = selected.length === uninvoiced.length;
+    const btn = mo.querySelector('#sel-all-btn');
+    if (btn) {
+      btn.textContent = allOn ? 'Deselect all' : 'Select all';
+      btn.style.color = allOn ? 'var(--accent2)' : 'var(--text2)';
+    }
+    mo.querySelector('#sel-count').textContent = `${selected.length} selected`;
+    mo.querySelector('#m-build').disabled = selected.length === 0;
+    if(!selected.length){ mo.querySelector('#inv-preview').innerHTML='<div style="font-size:11px;color:var(--text3)">No entries selected</div>'; return; }
+
+    const subtotal=selected.reduce((s,e)=>s+Number(e.computed_total||0),0);
+    const grouped=buildGroupedPreview(selected);
+
+    let footer='';
+    if(coverStripe) {
+      const autoFee=calcStripeFee(subtotal);
+      const feeVal=mo.querySelector('#stripe-fee-input')?Number(mo.querySelector('#stripe-fee-input').value)||autoFee:autoFee;
+      const invoiceTotal=subtotal+feeVal;
+      const stripeDeduction=invoiceTotal*0.029+0.30;
+      const netReceived=invoiceTotal-stripeDeduction;
+      footer=`
+        <div style="margin-top:10px;border:1px solid var(--fin-border);border-radius:var(--r);overflow:hidden">
+          <div style="padding:6px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--fin2);background:var(--fin-bg);border-bottom:1px solid var(--fin-border)">Stripe Processing Fee</div>
+          <div style="display:flex;justify-content:space-between;padding:6px 12px;font-size:12px;border-bottom:1px solid var(--border)">
+            <span style="color:var(--text2)">Creative Services Subtotal</span>
+            <span class="mono-num">${$m(subtotal)}</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;font-size:12px;border-bottom:1px solid var(--border);gap:8px">
+            <span style="color:var(--text2);white-space:nowrap">Stripe Processing Fee</span>
+            <span style="display:flex;align-items:center;gap:6px">
+              <span style="color:var(--text3);font-size:10px">$</span>
+              <input type="number" step="0.01" min="0" id="stripe-fee-input" value="${feeVal.toFixed(2)}"
+                style="width:90px;padding:3px 6px;font-size:12px;text-align:right" title="Editable — adjust or waive manually">
+            </span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 12px;font-size:13px;font-weight:600;border-bottom:1px solid var(--border)">
+            <span>Invoice Total</span>
+            <span class="mono-num amber" id="inv-total-display">${$m(invoiceTotal)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:5px 12px 7px;font-size:11px;color:var(--fin2)">
+            <span>Estimated Net Received</span>
+            <span class="mono-num" id="inv-net-display">${$m(netReceived)}</span>
+          </div>
+        </div>`;
+    }
+
+    mo.querySelector('#inv-preview').innerHTML = grouped + footer;
+    if(coverStripe && mo.querySelector('#stripe-fee-input')) {
+      mo.querySelector('#stripe-fee-input').oninput = () => updatePreview();
+    }
+  }
+
+  mo.querySelector('#sel-all-btn').onclick = () => {
+    const allOn = sel.size === uninvoiced.length;
+    if(allOn) sel.clear(); else uninvoiced.forEach(e=>sel.add(e.id));
+    renderEntryList();
+    updatePreview();
+  };
+
+  // Wire toggle pill
+  const toggleWrap = mo.querySelector('#stripe-toggle-wrap');
+  const toggleChk  = mo.querySelector('#stripe-toggle');
+  function applyToggleState() {
+    coverStripe = toggleChk.checked;
+    toggleWrap.classList.toggle('on', coverStripe);
+    updatePreview();
+  }
+  toggleWrap.onclick = (ev) => {
+    if (ev.target !== toggleChk) { toggleChk.checked = !toggleChk.checked; }
+    applyToggleState();
+  };
+  toggleChk.onchange = applyToggleState;
+
+  renderEntryList();
+  updatePreview();
+
+  mo.querySelector('#m-build').onclick=async()=>{
+    const ids=Array.from(sel);
+    const selEnts=uninvoiced.filter(e=>ids.includes(e.id));
+    const subtotal=selEnts.reduce((s,e)=>s+Number(e.computed_total||0),0);
+    const btn=mo.querySelector('#m-build');
+    btn.disabled=true; btn.textContent='Creating…';
+
+    let feeAmount=null;
+    let invoiceTotal=subtotal;
+    if(coverStripe) {
+      const feeInput=mo.querySelector('#stripe-fee-input');
+      feeAmount=feeInput?Number(feeInput.value):calcStripeFee(subtotal);
+      invoiceTotal=subtotal+feeAmount;
+    }
+
+    const {data:inv,error}=await sb.from('invoices').insert({
+      client_id:client.id,user_id:STATE.user.id,
+      entry_ids:ids,status:'draft',
+      total_amount:invoiceTotal,
+      stripe_fee_amount:feeAmount,
+    }).select().single();
+    if(error){ alert('Error: '+error.message); btn.disabled=false; btn.textContent='Generate Invoice Draft'; return; }
+    if(inv) {
+      const {error:e2}=await sb.from('entries').update({invoiced:true,invoice_id:inv.id,work_status:'invoiced'}).in('id',ids);
+      if(e2){ alert('Warning: invoice created but entries not marked: '+e2.message); }
+    }
+    ov.remove(); fetchAll();
+  };
+}
+
+// ── Invoice Detail Modal ──────────────────────────────────────
+function openInvoiceDetail(inv) {
+  const client  = STATE.clients.find(c=>c.id===inv.client_id);
+  const invEnts = STATE.entries.filter(e=>(inv.entry_ids||[]).includes(e.id));
+  const dates   = invEnts.map(e=>new Date(e.date+'T00:00:00')).filter(d=>!isNaN(d));
+  const mn = dates.length ? $d(new Date(Math.min(...dates)).toISOString().slice(0,10)) : '';
+  const mx = dates.length ? $d(new Date(Math.max(...dates)).toISOString().slice(0,10)) : '';
+  const sb_map = {draft:'badge-draft',sent:'badge-sent',paid:'badge-paid'};
+  const groupedBody = buildGroupedPreview(invEnts);
+  const hasStripeId = !!inv.stripe_invoice_id;
+
+  const {ov,mo} = makeOverlay(`
+    <div class="modal-hdr">
+      <div>
+        <div style="font-weight:600;font-size:13px">Invoice #${inv.id.slice(0,8).toUpperCase()}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(client?.name||'')} · ${mn}${mx!==mn?` – ${mx}`:''}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge ${sb_map[inv.status]||''}">${inv.status}</span>
+        <button class="btn btn-ghost btn-sm" id="m-close">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      ${groupedBody}
+      <div style="height:14px"></div>
+
+      ${inv.stripe_fee_amount ? `
+      <div style="border:1px solid var(--fin-border);border-radius:var(--r);overflow:hidden;margin-bottom:14px">
+        <div style="padding:5px 11px;font-size:10px;color:var(--fin2);letter-spacing:.1em;text-transform:uppercase;background:var(--fin-bg);border-bottom:1px solid var(--fin-border)">Stripe Processing Fee</div>
+        <div style="display:flex;justify-content:space-between;padding:5px 11px;font-size:12px;border-bottom:1px solid var(--border)">
+          <span style="color:var(--text2)">Creative Services Subtotal</span>
+          <span class="mono-num">${$m(inv.total_amount - inv.stripe_fee_amount)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:5px 11px;font-size:12px;border-bottom:1px solid var(--border)">
+          <span style="color:var(--text2)">Stripe Processing Fee</span>
+          <span class="mono-num">${$m(inv.stripe_fee_amount)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:5px 11px;font-size:13px;font-weight:600;border-bottom:1px solid var(--border)">
+          <span>Invoice Total</span><span class="mono-num amber">${$m(inv.total_amount)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:5px 11px 7px;font-size:11px;color:var(--green2)">
+          <span>Estimated Net Received</span>
+          <span class="mono-num">${$m(inv.total_amount - inv.total_amount*0.029 - 0.30)}</span>
+        </div>
+      </div>` : ''}
+
+      <!-- Stripe section -->
+      <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+        <div style="padding:6px 11px;font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border)">Stripe</div>
+        <div style="padding:12px 11px">
+          ${hasStripeId ? `
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+              <span style="color:var(--text3)">ID</span>
+              <span class="mono-num" style="color:var(--text2)">${esc(inv.stripe_invoice_id)}</span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-fin btn-sm" id="open-stripe-btn">↗ Open in Stripe</button>
+              <button class="btn btn-ghost btn-sm" id="copy-link-btn">⎘ Copy Link</button>
+              <button class="btn btn-ghost btn-sm" id="sync-status-btn">↻ Sync Status</button>
+            </div>
+            <div id="stripe-status-row" style="font-size:11px;color:var(--text3)"></div>
+          </div>` : `
+          <div style="display:flex;flex-direction:column;gap:10px">
+            ${!client?.email ? `<div style="font-size:11px;color:var(--red2)">⚠ Client has no email — add one in Settings before pushing to Stripe.</div>` : ''}
+            <button class="btn btn-fin" id="send-stripe-btn" ${!client?.email?'disabled':''}>
+              ↑ Send to Stripe
+            </button>
+            <div id="stripe-push-status" style="font-size:11px;color:var(--text3)"></div>
+          </div>`}
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      ${inv.status==='draft' ? '<button class="btn btn-ghost" id="mark-sent">Mark as Sent</button>' : ''}
+      ${inv.status==='sent'  ? '<button class="btn btn-green"  id="mark-paid">Mark as Paid ✓</button>' : ''}
+      ${inv.status==='paid'  ? '<span style="font-size:12px;color:var(--green2)">✓ Paid</span>' : ''}
+    </div>`,true);
+
+  mo.querySelector('#m-close').onclick = () => ov.remove();
+
+  if (mo.querySelector('#mark-sent')) mo.querySelector('#mark-sent').onclick = async () => {
+    await sb.from('invoices').update({status:'sent'}).eq('id',inv.id); ov.remove(); fetchAll();
+  };
+  if (mo.querySelector('#mark-paid')) mo.querySelector('#mark-paid').onclick = async () => {
+    await sb.from('invoices').update({status:'paid'}).eq('id',inv.id); ov.remove(); fetchAll();
+  };
+
+  // ── Already has Stripe ID ────────────────────────────────────
+  if (hasStripeId) {
+    const stripeUrl = `https://dashboard.stripe.com/invoices/${inv.stripe_invoice_id}`;
+    if (mo.querySelector('#open-stripe-btn')) {
+      mo.querySelector('#open-stripe-btn').onclick = () => window.open(stripeUrl, '_blank');
+    }
+    if (mo.querySelector('#copy-link-btn')) {
+      mo.querySelector('#copy-link-btn').onclick = async () => {
+        // Fetch the hosted invoice URL from Stripe
+        const btn = mo.querySelector('#copy-link-btn');
+        btn.textContent = '…'; btn.disabled = true;
+        try {
+          const res = await fetch('/api/stripe', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ action:'get_invoice_status', payload:{ stripe_invoice_id: inv.stripe_invoice_id } }),
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          if (data.hosted_invoice_url) {
+            await navigator.clipboard.writeText(data.hosted_invoice_url);
+            btn.textContent = '✓ Copied';
+            setTimeout(()=>{ btn.textContent='⎘ Copy Link'; btn.disabled=false; }, 2000);
+          } else {
+            throw new Error('No hosted URL available yet');
+          }
+        } catch(e) {
+          alert('Could not copy link: ' + e.message);
+          btn.textContent = '⎘ Copy Link'; btn.disabled = false;
+        }
+      };
+    }
+    if (mo.querySelector('#sync-status-btn')) {
+      mo.querySelector('#sync-status-btn').onclick = async () => {
+        const btn = mo.querySelector('#sync-status-btn');
+        const row = mo.querySelector('#stripe-status-row');
+        btn.textContent = '…'; btn.disabled = true;
+        try {
+          const res = await fetch('/api/stripe', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ action:'get_invoice_status', payload:{ stripe_invoice_id: inv.stripe_invoice_id } }),
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
+          row.innerHTML = `Stripe status: <span style="color:var(--amber)">${data.status}</span>${data.amount_paid>0?` · Paid: ${$m(data.amount_paid/100)}`:''}`;
+          // Auto-update local status if Stripe shows paid
+          if (data.status === 'paid' && inv.status !== 'paid') {
+            await sb.from('invoices').update({status:'paid'}).eq('id',inv.id);
+            fetchAll();
+          }
+        } catch(e) {
+          row.innerHTML = `<span style="color:var(--red2)">Error: ${esc(e.message)}</span>`;
+        }
+        btn.textContent = '↻ Sync Status'; btn.disabled = false;
+      };
+    }
+
+  // ── No Stripe ID yet — push button ──────────────────────────
+  } else if (mo.querySelector('#send-stripe-btn')) {
+    mo.querySelector('#send-stripe-btn').onclick = async () => {
+      const btn  = mo.querySelector('#send-stripe-btn');
+      const stat = mo.querySelector('#stripe-push-status');
+      btn.disabled = true; btn.textContent = 'Connecting…';
+
+      try {
+        // Step 1: find or create customer
+        stat.textContent = 'Finding Stripe customer…';
+        const custRes = await fetch('/api/stripe', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            action: 'find_or_create_customer',
+            payload: { name: client.name, email: client.email },
+          }),
+        });
+        const custData = await custRes.json();
+        if (custData.error) throw new Error(custData.error);
+        const customerId = custData.customer.id;
+        stat.textContent = custData.created
+          ? `Created new Stripe customer`
+          : `Found existing customer: ${custData.customer.name||custData.customer.email}`;
+
+        // Step 2+3: build structured line items with section headers
+        const stripeFeeItem = inv.stripe_fee_amount ? {
+          description: 'Stripe Processing Fee',
+          amount_cents: Math.round(Number(inv.stripe_fee_amount) * 100),
+        } : null;
+        const lineItems = buildStripeLineItems(invEnts, stripeFeeItem);
+
+        // Step 4: create invoice in Stripe
+        stat.textContent = 'Creating invoice in Stripe…';
+        const invRes = await fetch('/api/stripe', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            action: 'create_invoice',
+            payload: {
+              customer_id:    customerId,
+              line_items:     lineItems,
+              stripe_fee_item: null, // already included in lineItems
+              invoice_log_id: inv.id,
+              client_name:    client.name,
+            },
+          }),
+        });
+        const invData = await invRes.json();
+        if (invData.error) throw new Error(invData.error);
+
+        // Step 5: save stripe_invoice_id back to Supabase
+        await sb.from('invoices').update({
+          stripe_invoice_id: invData.stripe_invoice_id,
+          status: 'sent',
+        }).eq('id', inv.id);
+
+        stat.innerHTML = `<span style="color:var(--green2)">✓ Created in Stripe as draft — review before sending to client</span>`;
+        btn.textContent = '✓ Pushed';
+        await fetchAll();
+
+        // Show the open in Stripe button immediately
+        setTimeout(() => {
+          const stripeUrl = `https://dashboard.stripe.com/invoices/${invData.stripe_invoice_id}`;
+          stat.innerHTML += `<br><button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="window.open('${stripeUrl}','_blank')">↗ Open in Stripe Dashboard</button>`;
+        }, 300);
+
+      } catch(e) {
+        stat.innerHTML = `<span style="color:var(--red2)">⚠ ${esc(e.message)}</span>`;
+        btn.disabled = false; btn.textContent = '↑ Send to Stripe';
+      }
+    };
+  }
+}
+
+// Format date as M.DD (no leading zero on month, padded day)
+function stripeDate(dateStr) {
+  if(!dateStr) return '';
+  const [,mm,dd] = dateStr.split('-');
+  return `${parseInt(mm,10)}.${dd}`;
+}
+
+// Single line item label: "M.DD - Title (Xhr)" for time-based, "M.DD - Title" for packages
+function buildLineDescription(e) {
+  const prefix = stripeDate(e.date);
+  const base   = prefix ? `${prefix} - ${e.title}` : e.title;
+  // Append (Xhr) for any entry with hours > 0 that is NOT flat-fee/package
+  const isTimeBased = (e.hours && Number(e.hours) > 0)
+    && e.type !== 'package'
+    && e.billing_mode !== 'flat_fee'
+    && e.billing_mode !== 'preset';
+  if (isTimeBased) {
+    const hrs = Number(e.hours);
+    const hStr = Number.isInteger(hrs) ? `${hrs}hr` : `${hrs}hr`;
+    return `${base} (${hStr})`;
+  }
+  return base;
+}
+
+// Build full structured Stripe line items matching app grouping
+// Returns array of { description, amount_cents }
+// Section headers are $0.00 items acting as visual separators
+function buildStripeLineItems(entries, stripeFeeItem) {
+  const STRIPE_GROUP_LABELS = {
+    shoot:          'VIDEO SHOOTS',
+    edit:           'VIDEO EDITS',
+    graphic_design: 'GRAPHIC DESIGN',
+    render:         '3D RENDERS',
+    package:        'PACKAGES',
+  };
+  const groups = {};
+  GROUP_ORDER.forEach(g => { groups[g] = []; });
+  entries.forEach(e => {
+    const g = entryGroup(e);
+    if(!groups[g]) groups[g] = [];
+    groups[g].push(e);
+  });
+  // Sort each group chronologically
+  Object.values(groups).forEach(arr => arr.sort((a,b)=>a.date.localeCompare(b.date)));
+
+  const items = [];
+  GROUP_ORDER.forEach(grp => {
+    const ents = groups[grp];
+    if(!ents.length) return;
+    const subtotal = ents.reduce((s,e)=>s+Number(e.computed_total||0),0);
+    // Section header — $0.00 separator
+    items.push({
+      description: `${STRIPE_GROUP_LABELS[grp]} — ${new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(subtotal)}`,
+      amount_cents: 0,
+    });
+    // Line items — M.DD - Title (no descriptors)
+    ents.forEach(e => {
+      items.push({
+        description: buildLineDescription(e),
+        amount_cents: Math.round(Number(e.computed_total) * 100),
+      });
+    });
+  });
+
+  if(stripeFeeItem) {
+    items.push(stripeFeeItem);
+  }
+  return items;
+}
+
+// ── Entry Detail Sheet ────────────────────────────────────────
+// Opens a bottom sheet with full project info + contextual actions.
+// tab = 'in_progress' | 'completed' | 'invoiced'
+function openEntryDetailSheet(e, client, tab, { onEdit, onDelete, onFinish, onReopen, onUnlock }) {
+  // helpers
+  const status = workStatus(e);
+  const pri    = duePriority(e.due_date);
+  const dueColor = { overdue:'#e06060', today:'#d4843a', soon:'#c8a84a' }[pri] || 'var(--text2)';
+
+  function rateDetail() {
+    if (e.type==='package'||e.billing_mode==='flat_fee'||e.billing_mode==='preset') return 'Package / flat fee';
+    if (e.type==='shoot')  return e.billing_mode==='day_rate'?'Day rate':`${e.hours}h @ ${$m(e.rate_override||client?.default_rates?.shoot_hourly_rate||0)}/hr`;
+    if (e.type==='edit')   return `${e.duration_minutes} min · ${EDIT_CATS[e.category]?.label||e.category||'Basic'} (×${EDIT_CATS[e.category]?.mult||1})`;
+    if (e.type==='graphic_design') return `${e.hours}h @ ${$m(e.rate_override||client?.default_rates?.graphic_design_hourly_rate||0)}/hr`;
+    if (e.type==='render') return `${e.hours}h @ ${$m(e.rate_override||client?.default_rates?.render_hourly_rate||0)}/hr`;
+    return '';
+  }
+
+  // link to invoice if invoiced
+  const inv = e.invoice_id ? STATE.invoices.find(i=>i.id===e.invoice_id) : null;
+  const invLabel = inv ? `#${inv.id.slice(0,8).toUpperCase()} · ${inv.status}` : null;
+
+  // Build info cells
+  const infoCells = [
+    { label:'Client',      val: esc(client?.name||'—') },
+    { label:'Work date',   val: $d(e.date)||'—' },
+    { label:'Type',        val: `<span class="badge badge-${e.type==='graphic_design'?'gfx':e.type||'shoot'}">${e.type==='graphic_design'?'GFX':(e.type||'').toUpperCase()}</span>` },
+    { label:'Rate',        val: esc(rateDetail()) },
+    e.due_date ? { label:'Due date', val:`<span style="color:${dueColor};font-weight:600">${fmtDue(e.due_date)}</span>` } : null,
+    invLabel    ? { label:'Invoice',  val:`<span class="fin-color">${esc(invLabel)}</span>` } : null,
+  ].filter(Boolean);
+
+  // Actions by context
+  function actionsHTML() {
+    if (status === 'in_progress') return `
+      <div class="sheet-action-row">
+        <button class="btn btn-primary" id="sh-finish" style="flex:1;justify-content:center">✓ Mark complete</button>
+        <button class="btn btn-ghost" id="sh-edit" style="flex:1;justify-content:center">✎ Edit</button>
+      </div>
+      <button class="btn btn-danger" id="sh-del" style="width:100%;justify-content:center">Delete entry</button>`;
+    if (status === 'completed') return `
+      <div class="sheet-action-row">
+        <button class="btn btn-ghost" id="sh-edit" style="flex:1;justify-content:center">✎ Edit</button>
+        <button class="btn btn-ghost" id="sh-reopen" style="flex:1;justify-content:center">↩ Reopen project</button>
+      </div>
+      <button class="btn btn-danger" id="sh-del" style="width:100%;justify-content:center">Delete entry</button>`;
+    if (status === 'invoiced') return `
+      ${inv && inv.status==='draft' ? `<button class="btn btn-ghost" id="sh-unlock" style="width:100%;justify-content:center">↩ Remove from invoice</button>` : ''}
+      <button class="btn btn-danger" id="sh-del" style="width:100%;justify-content:center;opacity:.6" id="sh-del">Delete entry</button>`;
+    return '';
+  }
+
+  const ov = document.createElement('div');
+  ov.className = 'sheet-overlay';
+  ov.innerHTML = `
+    <div class="sheet">
+      <div class="sheet-handle"><div class="sheet-handle-bar"></div></div>
+      <div class="sheet-hdr">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <div class="sheet-title">${esc(e.title)}</div>
+            <div class="sheet-sub">${esc(client?.name||'')}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="sh-close" style="flex-shrink:0;margin-left:8px">✕</button>
+        </div>
+      </div>
+      <div class="sheet-amount">${$m(e.computed_total)}</div>
+      <div class="sheet-amount-label">${status==='invoiced'?'invoiced':status==='in_progress'?'in progress':'ready to bill'}</div>
+      <div class="sheet-info">
+        ${infoCells.map(c=>`<div class="sheet-info-cell"><div class="sheet-info-label">${c.label}</div><div class="sheet-info-val">${c.val}</div></div>`).join('')}
+      </div>
+      <div class="sheet-actions">
+        ${actionsHTML()}
+      </div>
+    </div>`;
+
+  document.body.appendChild(ov);
+
+  function close() { ov.remove(); }
+
+  ov.addEventListener('click', ev => { if(ev.target===ov) close(); });
+  ov.querySelector('#sh-close').onclick = close;
+
+  const shEdit   = ov.querySelector('#sh-edit');
+  const shDel    = ov.querySelector('#sh-del');
+  const shFinish = ov.querySelector('#sh-finish');
+  const shReopen = ov.querySelector('#sh-reopen');
+  const shUnlock = ov.querySelector('#sh-unlock');
+
+  if (shEdit)   shEdit.onclick   = () => { close(); onEdit(); };
+  if (shFinish) shFinish.onclick = () => { close(); onFinish(); };
+  if (shReopen) shReopen.onclick = () => { close(); onReopen(); };
+  if (shUnlock) shUnlock.onclick = () => { close(); onUnlock(); };
+  if (shDel)    shDel.onclick    = () => {
+    // Inline confirm inside the sheet instead of window.confirm
+    shDel.textContent = 'Tap again to confirm delete';
+    shDel.style.background = 'rgba(192,72,72,.18)';
+    shDel.style.borderColor = 'rgba(192,72,72,.5)';
+    shDel.onclick = () => { close(); onDelete(); };
+  };
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+(async()=>{
+  // Guard: if Supabase failed to load from CDN
+  if(typeof supabase==='undefined') {
+    document.getElementById('app').innerHTML='<div class="loading-screen" style="flex-direction:column;gap:12px"><span style="color:var(--red)">⚠ Failed to load Supabase library.</span><span style="font-size:11px;color:var(--text3)">Check your internet connection and reload.</span></div>';
+    return;
+  }
+
+  try {
+    // Single source of truth: getSession on load
+    const {data,error} = await sb.auth.getSession();
+    if(error) throw error;
+    STATE.user = data?.session?.user || null;
+    STATE.loading = false;
+    if(STATE.user) await fetchAll(); else render();
+  } catch(err) {
+    document.getElementById('app').innerHTML=`<div class="loading-screen" style="flex-direction:column;gap:12px"><span style="color:var(--red)">⚠ ${err.message||'Connection error'}</span><span style="font-size:11px;color:var(--text3)">Check Supabase URL and key, then reload.</span></div>`;
+    return;
+  }
+
+  // Listen for login/logout after initial load
+  sb.auth.onAuthStateChange(async(_event,session)=>{
+    const newUser = session?.user||null;
+    const wasLoggedIn = !!STATE.user;
+    STATE.user = newUser;
+    if(newUser && !wasLoggedIn) { await fetchAll(); }
+    else if(!newUser) { STATE.clients=[]; STATE.entries=[]; STATE.invoices=[]; render(); }
+  });
+})();
+</script>
+</body>
+</html>
